@@ -1,0 +1,3879 @@
+---
+title: "Code for figures in *'Large pool of organic ligands supports iron bioavailability and reduces copper toxicity in whale excrement'* by Monreal et al."
+output: html_notebook
+---
+
+
+## Load in libraries 
+```{r}
+library(openxlsx)
+library(tidyverse)
+library(ggpattern)
+library(ggbreak)
+library(ggpattern)
+library(grid)
+library(gridExtra)
+library(gtable)
+library(xcms)
+library(RaMS)
+library(data.table)
+library(baseline)
+library(signal)
+library(conflicted)
+library(ggpubr)
+library(scales)
+library(RColorBrewer)
+
+# Use only the dplyr filter function and not the signal one
+conflict_prefer("filter", "dplyr")
+conflict_prefer("rename", "dplyr")
+conflict_prefer("select", "dplyr")
+conflict_prefer("as.data.frame", "base")
+conflict_prefer("which.max","base")
+conflict_prefer("unique","base")
+
+# Path to excel sheet with all required data (except for ESI-MS .mzxml)
+github_data = "~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/For GitHub/GitHub_Data_For_Whale_Ligand_Figures.xlsx"
+
+```
+
+## Data for Fig. 1 and Fig. 4
+```{r}
+#######################################################
+# Loading in necessary data for Fig. 1A-D
+compare = read.xlsx(github_data, sheet = 1)
+compare %>% as_tibble() %>% print(n=50)
+#######################################################
+
+#######################################################
+# Loading in necessary data for Fig. 1E
+tab1 = as.data.frame(read.xlsx(github_data, sheet = 2, startRow = 2))
+tab1
+tab2 = as.data.frame(read.xlsx(github_data, sheet = 3, startRow = 3))
+tab2
+#######################################################
+```
+## Data for Fig. 2, with ICPMS data used for Fig. S1 and ESIMS data used for Fig. S4 and Fig. S7 as well
+```{r}
+#######################################################
+# Loading in necessary data for Fig. 2
+plot_peaks = as.data.frame(read.xlsx(github_data, sheet = 5, startRow = 1))
+plot_peaks %>% print(n = 50)
+#######################################################
+
+#######################################################
+# LC-ICPMS data for Fig. 2
+ICPdata = read.xlsx(github_data, sheet = 4, startRow = 1) %>%
+  filter(sampleID == "Whale_MN_19") %>%
+  select(-sampleID, -samplerun)
+ICPdata$scan = as.numeric(ICPdata$scan)
+ICPdata$intensity = as.numeric(ICPdata$intensity)
+ICPdata$time = as.numeric(ICPdata$time)
+
+print(ICPdata)
+#######################################################
+
+#######################################################
+# LC-ESI-MS data for Fig. 2, loaded in two different data structures
+ESIrams = grabMSdata(c("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/ESI/dissolved/MN19/221116_Whale_MN_19.mzXML"),
+                     grab_what=c("MS1", "MS2", "BPC"),
+                     verbosity = "minimal",
+                     rtrange = timerange/60) #sample file, loading in using RaMS instead of xcms
+print(ESIrams$MS1)
+
+mzxcms = xcmsRaw("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/ESI/dissolved/MN19/221116_Whale_MN_19.mzXML",profstep=0.02,profmethod="bin",profparam=list(),includeMSn=FALSE,mslevel=NULL, scanrange=NULL)
+print(mzxcms)
+#######################################################
+```
+## Data for Fig. 3
+```{r}
+#######################################################
+# Molecular formula data for Fig. 3 (VK plot)
+cu_ligands = read.xlsx(github_data, sheet = 6) %>%
+  rename("mz" = "m/z",
+         "MF" = "[M]+",
+         "int" = "Intensity",
+         "resolution" = "Resolution",
+         "noise" = "Noise",
+         "signal_to_noise" = "S/N",
+         "resolution_ppm" = "dm.(ppm)",
+         "delta_cu_iso_err_mDa" = "Iso.Error.(mDa)",
+         "H_C_ratio" = "H/C",
+         "O_C_ratio" = "O/C",
+         "N_C_ratio" = "N/C",
+         "mz_freestyle" = "Peak.Mass",
+         "assignment_err_ppm_freestyle" = "Delta",
+         "formula_freestyle" = "Display.Formula")
+cu_ligands
+
+this_study = cu_ligands[complete.cases(cu_ligands$mz_freestyle), ]
+
+known_molecules = cu_ligands[c(56:nrow(cu_ligands)),]
+
+all_with_formula = cu_ligands[complete.cases(cu_ligands$C), ]
+#######################################################
+```
+## Data for Fig. S2
+```{r}
+#######################################################
+MN19 = as.data.frame(read.xlsx(github_data, sheet = 7, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "4",
+         "0_Fe_2" = "5",
+         "1_Fe" = "6",
+         "2_Fe" = "7",
+         "3_Fe" = "8",
+         "5_Fe" = "9",
+         "7_5_Fe" = "10",
+         "10_Fe" = "11",
+         "15_Fe" = "12",
+         "20_Fe" = "13",
+         "30_Fe" = "14",
+         "40_Fe" = "15",
+         "50_Fe" = "16",
+         "75_Fe" = "17",
+         "100_Fe" = "18",
+         "SPIKE" = "19")
+
+MN19 <- gather(MN19, key = "treatment", value = "Y", -potential)
+
+MN20 = as.data.frame(read.xlsx(github_data, sheet = 8, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "3",
+         "0_Fe_2" = "4",
+         "0_5_Fe" = "5",
+         "1_5_Fe" = "6",
+         "2_Fe" = "7",
+         "3_Fe" = "8",
+         "4_Fe" = "9",
+         "5_Fe" = "10",
+         "7_5_Fe" = "11",
+         "10_Fe" = "12",
+         "15_Fe" = "13",
+         "20_Fe" = "14",
+         "30_Fe" = "15",
+         "40_Fe" = "16",
+         "50_Fe" = "17",
+         "SPIKE" = "18")
+
+MN20 <- gather(MN20, key = "treatment", value = "Y", -potential)
+
+
+MSS1 = as.data.frame(read.xlsx(github_data, sheet = 9, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "3",
+         "0_Fe_2" = "4",
+         "1_Fe" = "5",
+         "2_Fe" = "6",
+         "3_Fe" = "7",
+         "5_Fe" = "8",
+         "7_5_Fe" = "9",
+         "10_Fe" = "10",
+         "15_Fe" = "11",
+         "20_Fe" = "12",
+         "30_Fe" = "13",
+         "40_Fe" = "14",
+         "50_Fe" = "15",
+         "75_Fe" = "16",
+         "100_Fe" = "17",
+         "SPIKE" = "18")
+
+MSS1 <- gather(MSS1, key = "treatment", value = "Y", -potential)
+
+
+CRC7 = as.data.frame(read.xlsx(github_data, sheet = 10, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "3",
+         "0_Fe_2" = "4",
+         "0_5_Fe" = "5",
+         "1_5_Fe" = "6",
+         "2_Fe" = "7",
+         "3_Fe" = "8",
+         "4_Fe" = "9",
+         "5_Fe" = "10",
+         "7_5_Fe" = "11",
+         "10_Fe" = "12",
+         "15_Fe" = "13",
+         "20_Fe" = "14",
+         "30_Fe" = "15",
+         "40_Fe" = "16",
+         "50_Fe" = "17",
+         "SPIKE" = "18")
+
+CRC7 <- gather(CRC7, key = "treatment", value = "Y", -potential)
+
+
+CRC210 = as.data.frame(read.xlsx(github_data, sheet = 11, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "4",
+         "0_Fe_2" = "5",
+         "1_Fe" = "6",
+         "2_Fe" = "7",
+         "3_Fe" = "8",
+         "5_Fe" = "9",
+         "7_5_Fe" = "10",
+         "10_Fe" = "11",
+         "15_Fe" = "12",
+         "20_Fe" = "13",
+         "30_Fe" = "14",
+         "40_Fe" = "15",
+         "50_Fe" = "16",
+         "75_Fe" = "17",
+         "100_Fe" = "18",
+         "SPIKE" = "19")
+
+CRC210 <- gather(CRC210, key = "treatment", value = "Y", -potential)
+
+MN19$treatment = factor(MN19$treatment, levels = c("0_Fe_1",
+                                                   "0_Fe_2",
+                                                   "1_Fe",
+                                                   "2_Fe",
+                                                   "3_Fe",
+                                                   "5_Fe",
+                                                   "7_5_Fe",
+                                                   "10_Fe",
+                                                   "15_Fe",
+                                                   "20_Fe",
+                                                   "30_Fe",
+                                                   "40_Fe",
+                                                   "50_Fe",
+                                                   "75_Fe",
+                                                   "100_Fe",
+                                                   "SPIKE"))
+
+MN20$treatment = factor(MN20$treatment, levels = c("0_Fe_1",
+                                                   "0_Fe_2",
+                                                   "0_5_Fe",
+                                                   "1_5_Fe",
+                                                   "2_Fe",
+                                                   "3_Fe",
+                                                   "4_Fe",
+                                                   "5_Fe",
+                                                   "7_5_Fe",
+                                                   "10_Fe",
+                                                   "15_Fe",
+                                                   "20_Fe",
+                                                   "30_Fe",
+                                                   "40_Fe",
+                                                   "50_Fe",
+                                                   "SPIKE"))
+
+MSS1$treatment = factor(MSS1$treatment, levels = c("0_Fe_1",
+                                                   "0_Fe_2",
+                                                   "1_Fe",
+                                                   "2_Fe",
+                                                   "3_Fe",
+                                                   "5_Fe",
+                                                   "7_5_Fe",
+                                                   "10_Fe",
+                                                   "15_Fe",
+                                                   "20_Fe",
+                                                   "30_Fe",
+                                                   "40_Fe",
+                                                   "50_Fe",
+                                                   "75_Fe",
+                                                   "100_Fe",
+                                                   "SPIKE"))
+
+CRC7$treatment = factor(CRC7$treatment, levels = c("0_Fe_1",
+                                                   "0_Fe_2",
+                                                   "0_5_Fe",
+                                                   "1_5_Fe",
+                                                   "2_Fe",
+                                                   "3_Fe",
+                                                   "4_Fe",
+                                                   "5_Fe",
+                                                   "7_5_Fe",
+                                                   "10_Fe",
+                                                   "15_Fe",
+                                                   "20_Fe",
+                                                   "30_Fe",
+                                                   "40_Fe",
+                                                   "50_Fe",
+                                                   "SPIKE"))
+
+CRC210$treatment = factor(CRC210$treatment, levels = c("0_Fe_1",
+                                                       "0_Fe_2",
+                                                       "1_Fe",
+                                                       "2_Fe",
+                                                       "3_Fe",
+                                                       "5_Fe",
+                                                       "7_5_Fe",
+                                                       "10_Fe",
+                                                       "15_Fe",
+                                                       "20_Fe",
+                                                       "30_Fe",
+                                                       "40_Fe",
+                                                       "50_Fe",
+                                                       "75_Fe",
+                                                       "100_Fe",
+                                                       "SPIKE"))
+
+MN19
+MN20
+MSS1
+CRC7
+CRC210
+#######################################################
+```
+
+## Data for Fig. S3
+```{r}
+#######################################################
+MN19_eHS = as.data.frame(read.xlsx(github_data, sheet = 14, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "no_SRHA_added_1" = "2",
+         "no_SRHA_added_2" = "3",
+         "no_SRHA_added_3" = "4",
+         "25_SRHA_added" = "5",
+         "50_SRHA_added" = "6",
+         "100_SRHA_added" = "7",
+         "150_SRHA_added" = "8",
+         "300_SRHA_added" = "9")
+
+MN19_eHS <- gather(MN19_eHS, key = "treatment", value = "Y", -potential)
+
+MN20_eHS = as.data.frame(read.xlsx(github_data, sheet = 15, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "no_SRHA_added_1" = "2",
+         "no_SRHA_added_2" = "3",
+         "no_SRHA_added_3" = "4",
+         "25_SRHA_added" = "5",
+         "50_SRHA_added" = "6",
+         "100_SRHA_added" = "7",
+         "150_SRHA_added" = "8",
+         "300_SRHA_added" = "9")
+
+MN20_eHS <- gather(MN20_eHS, key = "treatment", value = "Y", -potential)
+
+
+MSS1_eHS = as.data.frame(read.xlsx(github_data, sheet = 16, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "no_SRHA_added_1" = "2",
+         "no_SRHA_added_2" = "3",
+         "no_SRHA_added_3" = "4",
+         "25_SRHA_added" = "5",
+         "50_SRHA_added" = "6",
+         "100_SRHA_added" = "7",
+         "150_SRHA_added" = "8",
+         "225_SRHA_added" = "9")
+
+MSS1_eHS <- gather(MSS1_eHS, key = "treatment", value = "Y", -potential)
+
+
+CRC7_eHS = as.data.frame(read.xlsx(github_data, sheet = 17, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "no_SRHA_added_1" = "2",
+         "no_SRHA_added_2" = "3",
+         "no_SRHA_added_3" = "4",
+         "25_SRHA_added" = "5",
+         "50_SRHA_added" = "6",
+         "100_SRHA_added" = "7",
+         "150_SRHA_added" = "8",
+         "225_SRHA_added" = "9")
+
+CRC7_eHS <- gather(CRC7_eHS, key = "treatment", value = "Y", -potential)
+
+
+CRC210_eHS = as.data.frame(read.xlsx(github_data, sheet = 18, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "no_SRHA_added_1" = "2",
+         "no_SRHA_added_2" = "3",
+         "no_SRHA_added_3" = "4",
+         "25_SRHA_added" = "5",
+         "50_SRHA_added" = "6",
+         "100_SRHA_added" = "7",
+         "150_SRHA_added" = "8",
+         "225_SRHA_added" = "9")
+
+CRC210_eHS <- gather(CRC210_eHS, key = "treatment", value = "Y", -potential)
+
+MN19_eHS$treatment = factor(MN19_eHS$treatment, levels = c("no_SRHA_added_1",
+                                                   "no_SRHA_added_2",
+                                                   "no_SRHA_added_3",
+                                                   "25_SRHA_added",
+                                                   "50_SRHA_added",
+                                                   "100_SRHA_added",
+                                                   "150_SRHA_added",
+                                                   "300_SRHA_added"))
+
+MN20_eHS$treatment = factor(MN20_eHS$treatment, levels = c("no_SRHA_added_1",
+                                                   "no_SRHA_added_2",
+                                                   "no_SRHA_added_3",
+                                                   "25_SRHA_added",
+                                                   "50_SRHA_added",
+                                                   "100_SRHA_added",
+                                                   "150_SRHA_added",
+                                                   "300_SRHA_added"))
+
+MSS1_eHS$treatment = factor(MSS1_eHS$treatment, levels = c("no_SRHA_added_1",
+                                                   "no_SRHA_added_2",
+                                                   "no_SRHA_added_3",
+                                                   "25_SRHA_added",
+                                                   "50_SRHA_added",
+                                                   "100_SRHA_added",
+                                                   "150_SRHA_added",
+                                                   "225_SRHA_added"))
+
+CRC7_eHS$treatment = factor(CRC7_eHS$treatment, levels = c("no_SRHA_added_1",
+                                                   "no_SRHA_added_2",
+                                                   "no_SRHA_added_3",
+                                                   "25_SRHA_added",
+                                                   "50_SRHA_added",
+                                                   "100_SRHA_added",
+                                                   "150_SRHA_added",
+                                                   "225_SRHA_added"))
+
+CRC210_eHS$treatment = factor(CRC210_eHS$treatment, levels = c("no_SRHA_added_1",
+                                                   "no_SRHA_added_2",
+                                                   "no_SRHA_added_3",
+                                                   "25_SRHA_added",
+                                                   "50_SRHA_added",
+                                                   "100_SRHA_added",
+                                                   "150_SRHA_added",
+                                                   "225_SRHA_added"))
+MN19_eHS
+MN20_eHS
+MSS1_eHS
+CRC7_eHS
+CRC210_eHS
+#######################################################
+```
+## Data for Fig. S6
+```{r}
+
+#######################################################
+
+ESIrams_FT = grabMSdata(c("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/FT Data/WHALE_Mn19.mzXML"),
+                     grab_what=c("MS1", "MS2", "BPC"),
+                     verbosity = "minimal",
+                     rtrange = timerange/60) #sample file, loading in using RaMS instead of xcms
+
+# First, Align ICPMS and Orbitrap data based on cyanocobalamin
+offset_FT <- 277.43681
+mzxcms_FT@scantime<-mzxcms@scantime+offset_FT
+ESIrams_FT$MS1$rt = ESIrams_FT$MS1$rt+(offset_FT/60)
+ESIrams_FT$MS2$rt = ESIrams_FT$MS2$rt+(offset_FT/60)
+
+ESIrams_FT$MS1
+ESIrams_FT$MS2
+
+#######################################################
+```
+## Data for Fig. S9
+```{r}
+
+MN19_Cu = as.data.frame(read.xlsx(github_data, sheet = 13, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "3",
+         "0_Fe_2" = "4",
+         "1_Fe" = "5",
+         "2_Fe" = "6",
+         "3_Fe" = "7",
+         "5_Fe" = "8",
+         "7_5_Fe" = "9",
+         "10_Fe" = "10",
+         "15_Fe" = "11",
+         "20_Fe" = "12",
+         "30_Fe" = "13",
+         "40_Fe" = "14",
+         "50_Fe" = "15",
+         "75_Fe" = "16",
+         "100_Fe" = "17",
+         "SPIKE" = "18")
+
+MN19_Cu <- gather(MN19_Cu, key = "treatment", value = "Y", -potential)
+
+MN20_Cu = as.data.frame(read.xlsx(github_data, sheet = 12, startRow = 1)) %>% 
+  rename("potential" = "X_Values",
+         "0_Fe_1" = "5",
+         "0_Fe_2" = "6",
+         "1_Fe" = "7",
+         "2_Fe" = "8",
+         "3_Fe" = "9",
+         "5_Fe" = "10",
+         "7_5_Fe" = "11",
+         "10_Fe" = "12",
+         "15_Fe" = "13",
+         "20_Fe" = "14",
+         "30_Fe" = "15",
+         "40_Fe" = "16",
+         "50_Fe" = "17",
+         "75_Fe" = "18",
+         "100_Fe" = "19",
+         "SPIKE" = "20")
+
+MN20_Cu <- gather(MN20_Cu, key = "treatment", value = "Y", -potential)
+
+MN19_Cu$treatment = factor(MN19_Cu$treatment, levels = c("0_Fe_1",
+                                                   "0_Fe_2",
+                                                   "1_Fe",
+                                                   "2_Fe",
+                                                   "3_Fe",
+                                                   "5_Fe",
+                                                   "7_5_Fe",
+                                                   "10_Fe",
+                                                   "15_Fe",
+                                                   "20_Fe",
+                                                   "30_Fe",
+                                                   "40_Fe",
+                                                   "50_Fe",
+                                                   "75_Fe",
+                                                   "100_Fe",
+                                                   "SPIKE"))
+
+MN20_Cu$treatment = factor(MN20_Cu$treatment, levels = c("0_Fe_1",
+                                                   "0_Fe_2",
+                                                   "1_Fe",
+                                                   "2_Fe",
+                                                   "3_Fe",
+                                                   "5_Fe",
+                                                   "7_5_Fe",
+                                                   "10_Fe",
+                                                   "15_Fe",
+                                                   "20_Fe",
+                                                   "30_Fe",
+                                                   "40_Fe",
+                                                   "50_Fe",
+                                                   "75_Fe",
+                                                   "100_Fe",
+                                                   "SPIKE"))
+MN19_Cu
+MN20_Cu
+
+#######################################################
+```
+## Data for Fig. S10
+```{r}
+
+std_curve <- data.frame(
+  Concentration = c(0, 25, 50, 100, 200),
+  Peak_Area = c(46491.23368, 247200.2432, 430735.6015, 748850.5695, 1382684.257)
+)
+
+std_curve
+
+std_icpms_data = read.xlsx(github_data, sheet = 4, startRow = 1) %>%
+  filter(grepl("Std|Blank", sampleID)) %>%
+  filter(sampleID %in% c("Std_1_25nM_1", "Std_2_50nM_2","Std_3_100nM_1","Std_4_200nM_1","Blank2")) %>%
+  filter(element == "56Fe")
+std_icpms_data$intensity = as.numeric(std_icpms_data$intensity)
+std_icpms_data$time = as.numeric(std_icpms_data$time)
+
+# Define a mapping of sampleIDs to concentration values
+concentration_mapping <- c("Std_1_25nM_1" = "25",
+                           "Std_2_50nM_2" = "50",
+                           "Std_3_100nM_1" = "100",
+                           "Std_4_200nM_1" = "200",
+                           "Blank2" = "0")
+
+# Replace sampleIDs with concentration values
+std_icpms_data$sampleID <- concentration_mapping[std_icpms_data$sampleID]
+
+# Order sampleID as a factor in the desired order
+std_icpms_data$sampleID <- factor(std_icpms_data$sampleID, levels = c("0", "25", "50", "100", "200"))
+
+std_icpms_data
+
+#######################################################
+```
+
+## Figure 1
+
+### Figure 1A
+#### Barplot of dFe values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1). Only other dFe values for these type of samples are also plotted from literature for comparison.
+```{r echo=TRUE, fig.width=7, fig.height=6}
+dfe_frame = compare %>% filter(element %in% c("dFe","SPE-Fe") & species_samp %in% c("MN19","MN20","CRC7","CRC210","MSS1","Ratnarajah et al. (2017) 1","Ratnarajah et al. (2017) 2","Ratnarajah et al. (2017) 3"))
+
+dfe_frame$species_samp = factor(dfe_frame$species_samp, levels = c("MN19","MN20","CRC7","CRC210","MSS1","Ratnarajah et al. (2017) 1","Ratnarajah et al. (2017) 2","Ratnarajah et al. (2017) 3"))
+
+ggplot(dfe_frame) +
+  labs(x = "",
+       y = "<b><span style = 'color:#00000000;'>&#91;dFe<sub></sub>&#93; (µ</span><span style = 'color:#CD6600;'>&#91;dFe<sub></sub>&#93; (µM)</span><span style = 'color:#000000;'>, </span><span style = 'color:#F2AD00;'>&#91;Fe-L&#93;<sub>SPE</sub> (µM)</span></b>") +
+  geom_col(aes(x = species_samp,
+               y = value_umol_kg,
+               fill = element),
+           color = "black",
+           position = position_dodge2(preserve = "single", padding = 0)) +
+  #patterned bar for SPE values to show efficiency ranges
+  geom_rect_pattern(xmin = 1,
+                    xmax = 1.45,
+                    ymin = 0.1410/0.4,
+                    ymax = 0.1410/0.05,
+                    fill = "gray90",
+                    color = "black",
+                    pattern = "stripe",
+                    pattern_fill = "#F2AD00",
+                    pattern_color = "#F2AD00",
+                    pattern_spacing = 0.045) +
+  #patterned bar for SPE values to show efficiency ranges
+  geom_rect_pattern(xmin = 2,
+                    xmax = 2.45,
+                    ymin = 0.0273/0.4,
+                    ymax = 0.0273/0.05,
+                    fill = "gray90",
+                    color = "black",
+                    pattern = "stripe", 
+                    pattern_fill = "#F2AD00",
+                    pattern_color = "#F2AD00",
+                    pattern_spacing = 0.045) +
+  geom_text(label = "5-40% efficiency",
+            x = (1+1.45)/2,
+            y = ((0.1410/0.4)+(0.1410/0.05))/2,
+            angle = 90,
+            size = 4.3,
+            fontface = "bold") +
+  geom_text(label = "This Study",
+            x = 2.5,
+            y = 7.5,
+            fontface = "bold",
+            size = 6) +
+  geom_text(label = "Ratnarajah et al.\n(2017)",
+            x = 7,
+            y = 7.5,
+            fontface = "bold",
+            size = 6) +
+  geom_errorbar(data = dfe_frame %>% filter(species_samp %in% c("MN19","MN20")),
+                aes(x = species_samp,
+                    ymin = (value_umol_kg - stddev_umol_kg),
+                    ymax = (value_umol_kg + stddev_umol_kg)),
+                width = 0.125, linewidth = 0.75,
+                position = position_nudge(x = -0.225)) +
+  geom_errorbar(data = dfe_frame %>% filter(!(species_samp %in% c("MN19","MN20"))),
+                aes(x = species_samp,
+                    ymin = (value_umol_kg - stddev_umol_kg),
+                    ymax = (value_umol_kg + stddev_umol_kg)),
+                width = 0.125, linewidth = 0.75,
+                position = position_nudge(x = 0)) +
+  scale_y_cut(breaks = c(4), which = c(1,2), scales = c(1,2), expand = expansion(mult = c(0, .1))) +
+  scale_x_discrete(expand = c(0,0),
+                   labels = c("MN19","MN20","CRC7","CRC210","MSS1","Humpback 1","Humpback 2","Humpback 3")) +
+  geom_vline(xintercept = 5.5, linetype = "dashed", color = "black", size = 0.75) +
+  #geom_rect to cover up overplotting with ggbreak
+  geom_rect(aes(xmin = 1, xmax = 1.5,ymin=4,ymax=7.5), fill = "white") +
+  scale_fill_manual(values = c("#CD6600","#F2AD00")) +
+  coord_cartesian(ylim = c(0,14)) +
+  theme_classic2(base_size = 19) +
+  theme(axis.title.x = element_blank(),
+        axis.title.y.left = element_markdown(),
+        legend.position = "none",
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+```
+### Figure 1B
+#### Barplot of ligand (L2, L4, and electroactive humic substances) values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1). Maximum dFe value from Fig. 1A is plotted as a horizontal dashed line to show how much ligand was present in the samples relative to dFe
+```{r echo=TRUE, fig.width=7, fig.height=6}
+ligand_frame = compare %>% filter(element %in% c("Ltotal","L2","L4","Cu-Ltotal","eHS") & species_samp %in% c("MN19","MN20","CRC7","CRC210","MSS1"))
+
+ligand_frame$species_samp = factor(ligand_frame$species_samp, levels = c("MN19","MN20","CRC7","CRC210","MSS1"))
+ligand_frame$element = factor(ligand_frame$element, levels = c("Ltotal","Cu-Ltotal","eHS","L2","L4"))
+
+
+# GROUPED BAR GRAPH WITH LIGANDS AND HUMICS
+ggplot() +
+  geom_col(data = ligand_frame %>% filter(!(element %in% c("L2","L4","Cu-Ltotal"))),
+           aes(x = species_samp,
+               y = value_umol_kg,
+               fill = element),
+           position = "dodge",
+           color = "black") +
+  geom_col(data = ligand_frame %>% filter(element %in% c("L2", "L4")),
+           aes(x = species_samp,
+               y = value_umol_kg,
+               fill = element),
+           #position = "stack",
+           position_stacknudge(x = -0.25),
+           color = "black",
+           width = 0.5) +
+  geom_errorbar(data = ligand_frame %>% filter(element == "eHS"),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.125,
+                size = 0.75,
+                position = position_nudge(x = 0.225)) +
+  geom_errorbar(data = ligand_frame %>% filter(element == "Ltotal"),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.125,
+                size = 0.75,
+                position = position_nudge(x = -0.25)) +
+  geom_hline(yintercept = 12.62,
+             linetype = "longdash",
+             size = 1,
+             alpha = 0.75,
+             color = "black") +
+  geom_text(aes(label = "Max\n[dFe]",
+                x = 1,
+                y = 70),
+            nudge_x = -0.25,
+            size = 4.5,
+            color = "black",
+            fontface = "bold",
+            alpha = 0.75) +
+  labs(x = "",
+       y = "<b><span style = 'color:#79402E;'>&#91;L<sub>2</sub>&#93; (µM eq Fe)</span><span style = 'color:#000000;'>, </span><span style = 'color:#AA9486;'>&#91;L<sub>4</sub>&#93; (µM eq Fe)</span><br><span style = 'color:#9986A5;'>&#91;eHS&#93;<sub></sub> (µM eq Fe)</span></b>") +
+  scale_fill_manual(values = c("#9986A5","#79402E","#AA9486","#000000")) +
+  coord_cartesian(expand = FALSE) +
+  scale_y_continuous(limits = c(0,1000),
+                     breaks = c(100,200,300,400,500,600,700,800,900)) +
+  theme_classic2(base_size = 19) +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_markdown(),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        axis.title.y.right = element_markdown(),
+        legend.position = "none",
+        axis.text.y.right = element_text(face = "bold", color = "black"))
+```
+### Figure 1C
+#### Barplot of dCu values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1).
+```{r echo=TRUE, fig.width=7, fig.height=6}
+dcu_frame = compare %>% filter(element %in% c("dCu","SPE-Cu") & species_samp %in% c("MN19","MN20","CRC7","CRC210","MSS1"))
+
+dcu_frame$species_samp = factor(dcu_frame$species_samp, levels = c("MN19","MN20","CRC7","CRC210","MSS1"))
+
+ggplot(dcu_frame) +
+  labs(x = "",
+       y = "<b><span style = 'color:#00A08A;'>&#91;dCu<sub></sub>&#93; (µM)</span><span style = 'color:#000000;'>, </span><span style = 'color:#D8B70A;'>&#91;Cu-L&#93;<sub>SPE</sub> (µM)</span></b>") +
+  geom_col(aes(x = species_samp,
+               y = value_umol_kg,
+               fill = element),
+           color = "black",
+           position = position_dodge2(preserve = "single", padding = 0)) +
+  geom_errorbar(data = dcu_frame %>% filter(element == "dCu" & !(species_samp %in% c("MN19", "MN20"))),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.125,
+                size = 0.75,
+                position = position_nudge(x = 0)) +
+  geom_errorbar(data = dcu_frame %>% filter(element == "dCu" & (species_samp %in% c("MN19", "MN20"))),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.125,
+                size = 0.75,
+                position = position_nudge(x = -0.225)) +
+  geom_rect_pattern(xmin = 1,
+                    xmax = 1.45,
+                    ymin = 4.899/0.4,
+                    ymax = 4.899/0.05,
+                    fill = "gray90",
+                    color = "black",
+                    pattern = "stripe",
+                    pattern_fill = "#D8B70A",
+                    pattern_color = "#D8B70A",
+                    pattern_spacing = 0.03) +
+  geom_rect_pattern(xmin = 2,
+                    xmax = 2.45,
+                    ymin = 1.153/0.4,
+                    ymax = 1.153/0.05,
+                    fill = "gray90",
+                    color = "black",
+                    pattern = "stripe",
+                    pattern_fill = "#D8B70A",
+                    pattern_color = "#D8B70A",
+                    pattern_spacing = 0.03) +
+  geom_text(label = "5-40% efficiency",
+            x = (1+1.45)/2,
+            y = ((4.899/0.4)+(4.899/0.05))/2,
+            angle = 90,
+            size = 4.3,
+            fontface = "bold") +
+  scale_fill_manual(values = c("#00A08A","#D8B70A")) +
+  scale_y_continuous(breaks = c(0,50,100,150,200,250,300),
+                     lim = c(0,325)) +
+  scale_x_discrete(labels = c("MN19","MN20","CRC7","CRC210","MSS1")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic2(base_size = 19) +
+  theme(axis.title.x = element_blank(),
+        axis.title.y.left = element_markdown(),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        legend.position = "none",
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+```
+### Figure 1D
+#### Barplot of Cu ligand values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1).
+```{r echo=TRUE, fig.width=3, fig.height=6}
+dcu_lig_frame = compare %>% filter(element %in% c("Cu-Ltotal") & species_samp %in% c("MN19","MN20"))
+
+dcu_lig_frame$species_samp = factor(dcu_lig_frame$species_samp, levels = c("MN19","MN20"))
+
+
+ggplot(dcu_lig_frame) +
+  labs(x = "",
+       y = "<b><span style = 'color:#82A78B;'>&#91;L<sub>Cu</sub>&#93;<sub>CSV</sub> (µM eq Cu)</span></b>") +
+  geom_col(aes(x = species_samp,
+               y = value_umol_kg,
+               fill = element),
+           color = "black",
+           width = 0.5,
+           position = position_dodge2(preserve = "single", padding = 0)) +
+  geom_errorbar(aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.125,
+                size = 0.75,
+                position = position_nudge(x = 0)) +
+  scale_fill_manual(values = c("#82A78B")) +
+  scale_y_continuous(breaks = c(0,50,100,150,200,250,300),
+                     lim = c(0,325)) +
+  scale_x_discrete(labels = c("MN19","MN20")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic2(base_size = 19) +
+  theme(axis.title.x = element_blank(),
+        axis.title.y.left = element_markdown(),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        legend.position = "none",
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+```
+
+### Figure 1E
+#### Table of additional values from CLE-ACSV (binding strength represented by logK, free metal concentrations) and descriptions of samples
+
+```{r echo=TRUE, fig.width=7, fig.height=8.5}
+#Reformatting data
+
+tab1[1,3] = "Antarctic\nPeninsula"
+tab1[2,3] = "Antarctic\nPeninsula"
+tab1[3,3] = "California\nCurrent"
+tab1[4,3] = "California\nCurrent"
+tab1[5,3] = "California\nCurrent"
+tab1[1,4] = "dark brown,\nviscous"
+tab1[2,4] = "light pink,\norange"
+tab1[3,4] = "light pink,\nclear"
+tab1[4,4] = "brown,\norange"
+tab1[5,4] = "dark brown,\nhighly viscous"
+tab1[1,5] = "0.2278\n± 0.167"
+tab1[2,5] = "0.0962\n± 0.021"
+tab1[3,5] = "0.0828\n± 0.028"
+tab1[4,5] = "0.3628\n± 0.267"
+tab1[5,5] = "0.518\n± 0.102"
+colnames(tab1) <- c("Sample",
+                    "Species",
+                    "Region",
+                    "Filtrate\nDescription",
+                    "[Fe`] (nM)")
+
+#Reformatting data
+tab2[1,2] = "9.184\n± 0.060"
+tab2[2,2] = "8.761\n± 0.057"
+tab2[3,2] = "8.196\n± 0.094"
+tab2[4,2] = "8.915\n± 0.067"
+tab2[5,2] = "9.649\n± 0.072"
+tab2[1,3] = "11.36\n± 0.284"
+tab2[2,3] = "11.672\n± 0.064"
+tab2[3,3] = "11.888\n± 0.101"
+tab2[4,3] = "11.235\n± 0.253"
+tab2[5,3] = "11.692\n± 0.058"
+tab2[1,4] = "14.47\n± 0.09"
+tab2[2,4] = "14.38\n± 0.04"
+tab2[1,5] = "4.246\n± 1.539"
+tab2[2,5] = "2.205\n± 0.321"
+
+colnames(tab2) <- c(bquote(bold(Sample)),
+                    bquote(bold(logK[FeL["4"]*", Fe`"]^cond)),
+                    bquote(bold(logK[FeL["2"]*", Fe`"]^cond)),
+                    bquote(bold(logK[CuL*", Cu`"]^cond)),
+                    "[Cu`] (pM)")
+
+t1 = tableGrob(tab1, rows = NULL)
+t1 <- gtable_add_grob(t1,
+                     grobs = rectGrob(gp = gpar(fill = NA, lwd = 4)),
+                     t = 1, l = 1, r = ncol(t1))
+
+t2 = tableGrob(tab2, theme = ttheme_default(parse = TRUE), rows = NULL)
+t2 <- gtable_add_grob(t2,
+                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 4)),
+                      t = 1, l = 1, r = ncol(t2))
+
+valigned <- gtable_combine(t1,t2, along=2)
+
+valigned <- gtable_add_grob(valigned,
+                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 4)),
+                      t = 1, b = nrow(valigned), l = 1, r = ncol(valigned))
+
+grid.arrange(valigned)
+
+```
+
+## Figure 2
+#### (A) 63Cu LC-ICP-MS chromatogram for sample MN19, along with (B) extracted ion chromatograms (EICs) of identified LC-ESI-MS (Orbitrap) peaks that correspond to ICP-MS peaks. Opaque colors represent EICs corresponding to 63Cu-bound masses while transparent colors represent EICs corresponding to 65Cu-bound masses, scaled by the natural abundance isotope ratio of 63Cu/65Cu. Exact masses are given from LC-FT-ICR-MS data at the 21 Tesla facility.
+
+
+```{r echo=TRUE, fig.width=17, fig.height=22, warning=FALSE}
+
+### Function to align ICPMS and ESIMS data using cyanocobalamin (internal standard) peaks
+### Typically this function is more interactive, but a simplified version is here for the sake of the markdown file
+
+timerange = c(60,2400)
+
+multiMSalign <- function(mzxcms,ICPdata,timerange){
+  #Find max Co signal in ICPMS chromatogram
+  ICPComax<-ICPdata[which.max(ICPdata[,"intensity"]),"time"]
+  
+  #Get retention time (in seconds) of Co peak (cobalamin) in Orbitrap data
+  B12profile<-rawEIC(mzxcms,c(678.285,678.295))
+  B12profile<-do.call(cbind,B12profile)
+  B12maxscan<-B12profile[which.max(B12profile[,2]),1]
+  OrbiComax<-mzxcms@scantime[B12maxscan]
+  
+  #Offset between ICPMS and ESIMS
+  Offset<-ICPComax-OrbiComax
+
+  mzxcms<-mzxcms
+  
+  return(Offset)
+}
+
+# First, ALign ICPMS and Orbitrap data based on cyanocobalamin
+offset<-multiMSalign(mzxcms,ICPdata %>% filter(element == "59Co"),timerange)
+# Apply Co Offest
+peaks$icprt = as.numeric(peaks$icprt) + (offset/60)
+apo_peaks$apo_icprt_real = as.numeric(apo_peaks$apo_icprt_real) + (offset/60)
+mzxcms@scantime<-mzxcms@scantime+offset
+ESIrams$MS1$rt = ESIrams$MS1$rt+(offset/60)
+
+# Prepare ICPMS data for plotting
+element_to_analyze = "63Cu"
+
+ICPdat_onesamp_onelement <- ICPdata %>%
+  filter(element == element_to_analyze) %>%
+  filter(time > 300)    # excluding first 5 min before LC pump switches from loading pump to nano pumps
+ICPdat_onesamp_onelement.t <- t(ICPdat_onesamp_onelement$intensity) %>% as.matrix()
+
+# Find baseline for plotting
+bc.als <- baseline(ICPdat_onesamp_onelement.t,
+                     lambda = 8, p = .01, maxit = 20, method='als')
+
+# Applies baseline correction and smooths out ICPMS data
+ICPdat_onesamp_onelement_wbl <- ICPdat_onesamp_onelement %>%
+  mutate(intensity_baselined = c(getBaseline(bc.als)),
+         intensity_corrected =  c(getCorrected(bc.als))) %>%
+  mutate(intensity_smoothed = sgolayfilt(intensity, p = 15),
+         intensity_corrected_smoothed = sgolayfilt(intensity_corrected, p = 15))
+
+# Further smoothing
+ICP<-cbind(ICPdat_onesamp_onelement_wbl[,c("time")],
+           ICPdat_onesamp_onelement_wbl[,c("intensity_corrected_smoothed")])
+colnames(ICP) = c("RT","Int")
+ICP_smoothish<-ksmooth(ICP[,1],ICP[,2],kernel="normal",bandwidth=3.5)
+
+# Convert LC_ICP_MS_Retention_Time to seconds
+plot_peaks$LC_ICP_MS_Retention_Time_seconds <- plot_peaks$LC_ICP_MS_Retention_Time * 60
+
+# Function to find the index of the closest value in ICPMS data
+find_closest_index <- function(value, vec) {
+  idx <- which.min(abs(vec - value))
+  return(idx)
+}
+
+# Find the index of the closest value for each LC_ICP_MS_Retention_Time
+index <- sapply(plot_peaks$LC_ICP_MS_Retention_Time_seconds, function(rt) {
+  find_closest_index(rt, ICP_smoothish$x)
+})
+
+# Add the ICP_max_int column to plot_peaks
+plot_peaks$ICP_max_int <- ICP_smoothish$y[index]
+
+# Starting to subset data by peaks for Fig. 2B
+# only plotting peaks c through o
+subset_peaks_c = (plot_peaks %>% filter(Peak == "c"))[-1,]
+subset_peaks_d = (plot_peaks %>% filter(Peak == "d"))[-1,]
+subset_peaks_e = (plot_peaks %>% filter(Peak == "e"))[-1,]
+subset_peaks_f = (plot_peaks %>% filter(Peak == "f"))[-1,]
+subset_peaks_g = (plot_peaks %>% filter(Peak == "g"))[-1,]
+subset_peaks_h = (plot_peaks %>% filter(Peak == "h"))[-1,]
+subset_peaks_i = (plot_peaks %>% filter(Peak == "i"))[-1,]
+subset_peaks_j = (plot_peaks %>% filter(Peak == "j"))[-1,]
+subset_peaks_k = (plot_peaks %>% filter(Peak == "k"))[-1,]
+subset_peaks_l = (plot_peaks %>% filter(Peak == "l"))[-1,]
+subset_peaks_m = (plot_peaks %>% filter(Peak == "m"))[-1,]
+subset_peaks_n = (plot_peaks %>% filter(Peak == "n"))[-1,]
+subset_peaks_o = (plot_peaks %>% filter(Peak == "o"))[-1,]
+
+subset_peaks_c_63Cu = vector("list", nrow(subset_peaks_c))
+subset_peaks_c_65Cu = vector("list", nrow(subset_peaks_c))
+subset_peaks_d_63Cu = vector("list", nrow(subset_peaks_d))
+subset_peaks_d_65Cu = vector("list", nrow(subset_peaks_d))
+subset_peaks_e_63Cu = vector("list", nrow(subset_peaks_e))
+subset_peaks_e_65Cu = vector("list", nrow(subset_peaks_e))
+subset_peaks_f_63Cu = vector("list", nrow(subset_peaks_f))
+subset_peaks_f_65Cu = vector("list", nrow(subset_peaks_f))
+subset_peaks_g_63Cu = vector("list", nrow(subset_peaks_g))
+subset_peaks_g_65Cu = vector("list", nrow(subset_peaks_g))
+subset_peaks_h_63Cu = vector("list", nrow(subset_peaks_h))
+subset_peaks_h_65Cu = vector("list", nrow(subset_peaks_h))
+subset_peaks_i_63Cu = vector("list", nrow(subset_peaks_i))
+subset_peaks_i_65Cu = vector("list", nrow(subset_peaks_i))
+subset_peaks_j_63Cu = vector("list", nrow(subset_peaks_j))
+subset_peaks_j_65Cu = vector("list", nrow(subset_peaks_j))
+subset_peaks_k_63Cu = vector("list", nrow(subset_peaks_k))
+subset_peaks_k_65Cu = vector("list", nrow(subset_peaks_k))
+subset_peaks_l_63Cu = vector("list", nrow(subset_peaks_l))
+subset_peaks_l_65Cu = vector("list", nrow(subset_peaks_l))
+subset_peaks_m_63Cu = vector("list", nrow(subset_peaks_m))
+subset_peaks_m_65Cu = vector("list", nrow(subset_peaks_m))
+subset_peaks_n_63Cu = vector("list", nrow(subset_peaks_n))
+subset_peaks_n_65Cu = vector("list", nrow(subset_peaks_n))
+subset_peaks_o_63Cu = vector("list", nrow(subset_peaks_o))
+subset_peaks_o_65Cu = vector("list", nrow(subset_peaks_o))
+
+# Goes through each LCICPMS peak, and subsets a retention time window for the EICs
+for(i in 1:nrow(subset_peaks_c)){
+  pktime = range(subset_peaks_c$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_c$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_c_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_c_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_d)){
+  pktime = range(subset_peaks_d$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_d$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_d_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_d_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_e)){
+  pktime = range(subset_peaks_e$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_e$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_e_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_e_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_f)){
+  pktime = range(subset_peaks_f$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_f$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_f_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_f_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_g)){
+  pktime = range(subset_peaks_g$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_g$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_g_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_g_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_h)){
+  pktime = range(subset_peaks_h$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_h$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_h_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_h_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_i)){
+  pktime = range(subset_peaks_i$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_i$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_i_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_i_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_j)){
+  pktime = range(subset_peaks_j$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_j$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_j_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_j_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_k)){
+  pktime = range(subset_peaks_k$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_k$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_k_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_k_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_l)){
+  pktime = range(subset_peaks_l$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_l$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_l_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_l_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_m)){
+  pktime = range(subset_peaks_m$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_m$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_m_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_m_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_n)){
+  pktime = range(subset_peaks_n$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_n$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_n_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_n_65Cu[[i]] = ms1
+  
+}
+
+for(i in 1:nrow(subset_peaks_o)){
+  pktime = range(subset_peaks_o$LC_ESI_MS_Retention_Time)
+  pktime[1] = pktime[1] - 1.5
+  pktime[2] = pktime[2] + 1.5
+  moi = subset_peaks_o$FT_ICR_MS_mz[i]
+  
+  ESI_rt_window = ESIrams$MS1[rt%between%(pktime)]
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  subset_peaks_o_63Cu[[i]] = ms1
+  
+  ms1 <- as.data.frame(tibble(ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$rt,
+                              ESI_rt_window[mz%between%pmppm(moi+1.9981901, ppm=3.5)]$int))
+  colnames(ms1) = c("rt","int")
+  ms1<-as.data.frame(ksmooth(ms1[,1],ms1[,2],kernel="normal",bandwidth=.05))
+  colnames(ms1) = c("rt","int")
+  
+  
+  subset_peaks_o_65Cu[[i]] = ms1
+  
+}
+
+
+
+#extract intensities 
+intensities_c <- sapply(subset_peaks_c_63Cu, function(df) df$int)
+intensities_d <- sapply(subset_peaks_d_63Cu, function(df) df$int)
+intensities_e <- sapply(subset_peaks_e_63Cu, function(df) df$int)
+intensities_f <- sapply(subset_peaks_f_63Cu, function(df) df$int)
+intensities_g <- sapply(subset_peaks_g_63Cu, function(df) df$int)
+intensities_h <- sapply(subset_peaks_h_63Cu, function(df) df$int)
+intensities_i <- sapply(subset_peaks_i_63Cu, function(df) df$int)
+intensities_j <- sapply(subset_peaks_j_63Cu, function(df) df$int)
+intensities_k <- sapply(subset_peaks_k_63Cu, function(df) df$int)
+intensities_l <- sapply(subset_peaks_l_63Cu, function(df) df$int)
+intensities_m <- sapply(subset_peaks_m_63Cu, function(df) df$int)
+intensities_n <- sapply(subset_peaks_n_63Cu, function(df) df$int)
+intensities_o <- sapply(subset_peaks_o_63Cu, function(df) df$int)
+
+# Find the maximum intensity across the entire list to normalize data
+max_intensity <- max(c(unlist(intensities_c),
+                       unlist(intensities_d),
+                       unlist(intensities_e),
+                       unlist(intensities_f),
+                       unlist(intensities_g),
+                       unlist(intensities_h),
+                       unlist(intensities_i),
+                       unlist(intensities_j),
+                       unlist(intensities_k),
+                       unlist(intensities_l),
+                       unlist(intensities_m),
+                       unlist(intensities_n),
+                       unlist(intensities_o)), na.rm = TRUE)
+
+# Further formatting of the data for plotting
+for (i in 1:length(subset_peaks_c_63Cu)) {
+  subset_peaks_c_63Cu[[i]]$type <- as.character(subset_peaks_c$FT_ICR_MS_mz[i])
+  subset_peaks_c_63Cu[[i]]$range = "c"
+  subset_peaks_c_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_c_63Cu[[i]]$int = subset_peaks_c_63Cu[[i]]$int/max_intensity
+  subset_peaks_c_63Cu[[i]]$max_int = max(subset_peaks_c_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_c_63Cu[[i]]$icprt = subset_peaks_c$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_c_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_c_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_c_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_c_65Cu)) {
+  subset_peaks_c_65Cu[[i]]$type <- as.character(subset_peaks_c$FT_ICR_MS_mz[i])
+  subset_peaks_c_65Cu[[i]]$range = "c"
+  subset_peaks_c_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_c_65Cu[[i]]$int = 2.2*(subset_peaks_c_65Cu[[i]]$int/max_intensity)
+  subset_peaks_c_65Cu[[i]]$max_int = max(subset_peaks_c_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_c_65Cu[[i]]$icprt = subset_peaks_c$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_c_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_c_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_c_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_d_63Cu)) {
+  subset_peaks_d_63Cu[[i]]$type <- as.character(subset_peaks_d$FT_ICR_MS_mz[i])
+  subset_peaks_d_63Cu[[i]]$range = "d"
+  subset_peaks_d_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_d_63Cu[[i]]$int = subset_peaks_d_63Cu[[i]]$int/max_intensity
+  subset_peaks_d_63Cu[[i]]$max_int = max(subset_peaks_d_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_d_63Cu[[i]]$icprt = subset_peaks_d$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_d_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_d_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_d_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_d_65Cu)) {
+  subset_peaks_d_65Cu[[i]]$type <- as.character(subset_peaks_d$FT_ICR_MS_mz[i])
+  subset_peaks_d_65Cu[[i]]$range = "d"
+  subset_peaks_d_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_d_65Cu[[i]]$int = 2.2*(subset_peaks_d_65Cu[[i]]$int/max_intensity)
+  subset_peaks_d_65Cu[[i]]$max_int = max(subset_peaks_d_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_d_65Cu[[i]]$icprt = subset_peaks_d$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_d_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_d_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_d_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_e_63Cu)) {
+  subset_peaks_e_63Cu[[i]]$type <- as.character(subset_peaks_e$FT_ICR_MS_mz[i])
+  subset_peaks_e_63Cu[[i]]$range = "e"
+  subset_peaks_e_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_e_63Cu[[i]]$int = subset_peaks_e_63Cu[[i]]$int/max_intensity
+  subset_peaks_e_63Cu[[i]]$max_int = max(subset_peaks_e_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_e_63Cu[[i]]$icprt = subset_peaks_e$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_e_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_e_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_e_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_e_65Cu)) {
+  subset_peaks_e_65Cu[[i]]$type <- as.character(subset_peaks_e$FT_ICR_MS_mz[i])
+  subset_peaks_e_65Cu[[i]]$range = "e"
+  subset_peaks_e_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_e_65Cu[[i]]$int = 2.2*(subset_peaks_e_65Cu[[i]]$int/max_intensity)
+  subset_peaks_e_65Cu[[i]]$max_int = max(subset_peaks_e_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_e_65Cu[[i]]$icprt = subset_peaks_e$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_e_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_e_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_e_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_f_63Cu)) {
+  subset_peaks_f_63Cu[[i]]$type <- as.character(subset_peaks_f$FT_ICR_MS_mz[i])
+  subset_peaks_f_63Cu[[i]]$range = "f"
+  subset_peaks_f_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_f_63Cu[[i]]$int = subset_peaks_f_63Cu[[i]]$int/max_intensity
+  subset_peaks_f_63Cu[[i]]$max_int = max(subset_peaks_f_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_f_63Cu[[i]]$icprt = subset_peaks_f$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_f_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_f_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_f_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_f_65Cu)) {
+  subset_peaks_f_65Cu[[i]]$type <- as.character(subset_peaks_f$FT_ICR_MS_mz[i])
+  subset_peaks_f_65Cu[[i]]$range = "f"
+  subset_peaks_f_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_f_65Cu[[i]]$int = 2.2*(subset_peaks_f_65Cu[[i]]$int/max_intensity)
+  subset_peaks_f_65Cu[[i]]$max_int = max(subset_peaks_f_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_f_65Cu[[i]]$icprt = subset_peaks_f$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_f_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_f_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_f_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_g_63Cu)) {
+  subset_peaks_g_63Cu[[i]]$type <- as.character(subset_peaks_g$FT_ICR_MS_mz[i])
+  subset_peaks_g_63Cu[[i]]$range = "g"
+  subset_peaks_g_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_g_63Cu[[i]]$int = subset_peaks_g_63Cu[[i]]$int/max_intensity
+  subset_peaks_g_63Cu[[i]]$max_int = max(subset_peaks_g_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_g_63Cu[[i]]$icprt = subset_peaks_g$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_g_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_g_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_g_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_g_65Cu)) {
+  subset_peaks_g_65Cu[[i]]$type <- as.character(subset_peaks_g$FT_ICR_MS_mz[i])
+  subset_peaks_g_65Cu[[i]]$range = "g"
+  subset_peaks_g_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_g_65Cu[[i]]$int = 2.2*(subset_peaks_g_65Cu[[i]]$int/max_intensity)
+  subset_peaks_g_65Cu[[i]]$max_int = max(subset_peaks_g_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_g_65Cu[[i]]$icprt = subset_peaks_g$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_g_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_g_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_g_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_h_63Cu)) {
+  subset_peaks_h_63Cu[[i]]$type <- as.character(subset_peaks_h$FT_ICR_MS_mz[i])
+  subset_peaks_h_63Cu[[i]]$range = "h"
+  subset_peaks_h_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_h_63Cu[[i]]$int = subset_peaks_h_63Cu[[i]]$int/max_intensity
+  subset_peaks_h_63Cu[[i]]$max_int = max(subset_peaks_h_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_h_63Cu[[i]]$icprt = subset_peaks_h$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_h_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_h_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_h_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_h_65Cu)) {
+  subset_peaks_h_65Cu[[i]]$type <- as.character(subset_peaks_h$FT_ICR_MS_mz[i])
+  subset_peaks_h_65Cu[[i]]$range = "h"
+  subset_peaks_h_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_h_65Cu[[i]]$int = 2.2*(subset_peaks_h_65Cu[[i]]$int/max_intensity)
+  subset_peaks_h_65Cu[[i]]$max_int = max(subset_peaks_h_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_h_65Cu[[i]]$icprt = subset_peaks_h$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_h_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_h_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_h_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_i_63Cu)) {
+  subset_peaks_i_63Cu[[i]]$type <- as.character(subset_peaks_i$FT_ICR_MS_mz[i])
+  subset_peaks_i_63Cu[[i]]$range = "i"
+  subset_peaks_i_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_i_63Cu[[i]]$int = subset_peaks_i_63Cu[[i]]$int/max_intensity
+  subset_peaks_i_63Cu[[i]]$max_int = max(subset_peaks_i_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_i_63Cu[[i]]$icprt = subset_peaks_i$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_i_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_i_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_i_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_i_65Cu)) {
+  subset_peaks_i_65Cu[[i]]$type <- as.character(subset_peaks_i$FT_ICR_MS_mz[i])
+  subset_peaks_i_65Cu[[i]]$range = "i"
+  subset_peaks_i_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_i_65Cu[[i]]$int = 2.2*(subset_peaks_i_65Cu[[i]]$int/max_intensity)
+  subset_peaks_i_65Cu[[i]]$max_int = max(subset_peaks_i_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_i_65Cu[[i]]$icprt = subset_peaks_i$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_i_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_i_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_i_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_j_63Cu)) {
+  subset_peaks_j_63Cu[[i]]$type <- as.character(subset_peaks_j$FT_ICR_MS_mz[i])
+  subset_peaks_j_63Cu[[i]]$range = "j"
+  subset_peaks_j_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_j_63Cu[[i]]$int = subset_peaks_j_63Cu[[i]]$int/max_intensity
+  subset_peaks_j_63Cu[[i]]$max_int = max(subset_peaks_j_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_j_63Cu[[i]]$icprt = subset_peaks_j$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_j_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_j_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_j_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_j_65Cu)) {
+  subset_peaks_j_65Cu[[i]]$type <- as.character(subset_peaks_j$FT_ICR_MS_mz[i])
+  subset_peaks_j_65Cu[[i]]$range = "j"
+  subset_peaks_j_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_j_65Cu[[i]]$int = 2.2*(subset_peaks_j_65Cu[[i]]$int/max_intensity)
+  subset_peaks_j_65Cu[[i]]$max_int = max(subset_peaks_j_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_j_65Cu[[i]]$icprt = subset_peaks_j$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_j_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_j_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_j_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_k_63Cu)) {
+  subset_peaks_k_63Cu[[i]]$type <- as.character(subset_peaks_k$FT_ICR_MS_mz[i])
+  subset_peaks_k_63Cu[[i]]$range = "k"
+  subset_peaks_k_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_k_63Cu[[i]]$int = subset_peaks_k_63Cu[[i]]$int/max_intensity
+  subset_peaks_k_63Cu[[i]]$max_int = max(subset_peaks_k_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_k_63Cu[[i]]$icprt = subset_peaks_k$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_k_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_k_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_k_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_k_65Cu)) {
+  subset_peaks_k_65Cu[[i]]$type <- as.character(subset_peaks_k$FT_ICR_MS_mz[i])
+  subset_peaks_k_65Cu[[i]]$range = "k"
+  subset_peaks_k_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_k_65Cu[[i]]$int = 2.2*(subset_peaks_k_65Cu[[i]]$int/max_intensity)
+  subset_peaks_k_65Cu[[i]]$max_int = max(subset_peaks_k_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_k_65Cu[[i]]$icprt = subset_peaks_k$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_k_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_k_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_k_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_l_63Cu)) {
+  subset_peaks_l_63Cu[[i]]$type <- as.character(subset_peaks_l$FT_ICR_MS_mz[i])
+  subset_peaks_l_63Cu[[i]]$range = "l"
+  subset_peaks_l_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_l_63Cu[[i]]$int = subset_peaks_l_63Cu[[i]]$int/max_intensity
+  subset_peaks_l_63Cu[[i]]$max_int = max(subset_peaks_l_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_l_63Cu[[i]]$icprt = subset_peaks_l$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_l_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_l_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_l_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_l_65Cu)) {
+  subset_peaks_l_65Cu[[i]]$type <- as.character(subset_peaks_l$FT_ICR_MS_mz[i])
+  subset_peaks_l_65Cu[[i]]$range = "l"
+  subset_peaks_l_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_l_65Cu[[i]]$int = 2.2*(subset_peaks_l_65Cu[[i]]$int/max_intensity)
+  subset_peaks_l_65Cu[[i]]$max_int = max(subset_peaks_l_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_l_65Cu[[i]]$icprt = subset_peaks_l$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_l_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_l_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_l_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_m_63Cu)) {
+  subset_peaks_m_63Cu[[i]]$type <- as.character(subset_peaks_m$FT_ICR_MS_mz[i])
+  subset_peaks_m_63Cu[[i]]$range = "m"
+  subset_peaks_m_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_m_63Cu[[i]]$int = subset_peaks_m_63Cu[[i]]$int/max_intensity
+  subset_peaks_m_63Cu[[i]]$max_int = max(subset_peaks_m_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_m_63Cu[[i]]$icprt = subset_peaks_m$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_m_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_m_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_m_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_m_65Cu)) {
+  subset_peaks_m_65Cu[[i]]$type <- as.character(subset_peaks_m$FT_ICR_MS_mz[i])
+  subset_peaks_m_65Cu[[i]]$range = "m"
+  subset_peaks_m_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_m_65Cu[[i]]$int = 2.2*(subset_peaks_m_65Cu[[i]]$int/max_intensity)
+  subset_peaks_m_65Cu[[i]]$max_int = max(subset_peaks_m_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_m_65Cu[[i]]$icprt = subset_peaks_m$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_m_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_m_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_m_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_n_63Cu)) {
+  subset_peaks_n_63Cu[[i]]$type <- as.character(subset_peaks_n$FT_ICR_MS_mz[i])
+  subset_peaks_n_63Cu[[i]]$range = "n"
+  subset_peaks_n_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_n_63Cu[[i]]$int = subset_peaks_n_63Cu[[i]]$int/max_intensity
+  subset_peaks_n_63Cu[[i]]$max_int = max(subset_peaks_n_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_n_63Cu[[i]]$icprt = subset_peaks_n$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_n_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_n_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_n_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_n_65Cu)) {
+  subset_peaks_n_65Cu[[i]]$type <- as.character(subset_peaks_n$FT_ICR_MS_mz[i])
+  subset_peaks_n_65Cu[[i]]$range = "n"
+  subset_peaks_n_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_n_65Cu[[i]]$int = 2.2*(subset_peaks_n_65Cu[[i]]$int/max_intensity)
+  subset_peaks_n_65Cu[[i]]$max_int = max(subset_peaks_n_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_n_65Cu[[i]]$icprt = subset_peaks_n$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_n_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_n_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_n_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_o_63Cu)) {
+  subset_peaks_o_63Cu[[i]]$type <- as.character(subset_peaks_o$FT_ICR_MS_mz[i])
+  subset_peaks_o_63Cu[[i]]$range = "o"
+  subset_peaks_o_63Cu[[i]]$metal = "63Cu"
+  subset_peaks_o_63Cu[[i]]$int = subset_peaks_o_63Cu[[i]]$int/max_intensity
+  subset_peaks_o_63Cu[[i]]$max_int = max(subset_peaks_o_63Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_o_63Cu[[i]]$icprt = subset_peaks_o$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_o_63Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_o_63Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_o_63Cu[[i]]$size = 0.3
+  }
+  
+}
+
+for (i in 1:length(subset_peaks_o_65Cu)) {
+  subset_peaks_o_65Cu[[i]]$type <- as.character(subset_peaks_o$FT_ICR_MS_mz[i])
+  subset_peaks_o_65Cu[[i]]$range = "o"
+  subset_peaks_o_65Cu[[i]]$metal = "65Cu"
+  subset_peaks_o_65Cu[[i]]$int = 2.2*(subset_peaks_o_65Cu[[i]]$int/max_intensity)
+  subset_peaks_o_65Cu[[i]]$max_int = max(subset_peaks_o_65Cu[[i]]$int, na.rm = TRUE)
+  subset_peaks_o_65Cu[[i]]$icprt = subset_peaks_o$LC_ESI_MS_Retention_Time[i]
+  if(unique(subset_peaks_o_65Cu[[i]]$max_int) >= 0.1){
+    subset_peaks_o_65Cu[[i]]$size = 0.6
+  }else{
+    subset_peaks_o_65Cu[[i]]$size = 0.3
+  }
+  
+}
+
+# Combine all data frames
+combined_df <- do.call(rbind, c(subset_peaks_c_63Cu,
+                                subset_peaks_c_65Cu,
+                                subset_peaks_d_63Cu,
+                                subset_peaks_d_65Cu,
+                                subset_peaks_e_63Cu,
+                                subset_peaks_e_65Cu,
+                                subset_peaks_f_63Cu,
+                                subset_peaks_f_65Cu,
+                                subset_peaks_g_63Cu,
+                                subset_peaks_g_65Cu,
+                                subset_peaks_h_63Cu,
+                                subset_peaks_h_65Cu,
+                                subset_peaks_i_63Cu,
+                                subset_peaks_i_65Cu,
+                                subset_peaks_j_63Cu,
+                                subset_peaks_j_65Cu,
+                                subset_peaks_k_63Cu,
+                                subset_peaks_k_65Cu,
+                                subset_peaks_l_63Cu,
+                                subset_peaks_l_65Cu,
+                                subset_peaks_m_63Cu,
+                                subset_peaks_m_65Cu,
+                                subset_peaks_n_63Cu,
+                                subset_peaks_n_65Cu,
+                                subset_peaks_o_63Cu,
+                                subset_peaks_o_65Cu))
+
+masses_to_plot = data.frame(matrix(NA,    # Create empty data frame
+                                   nrow = length(unique(combined_df$type)),
+                                   ncol = ncol(combined_df)))
+colnames(masses_to_plot) = colnames(combined_df)
+
+for(i in 1:nrow(masses_to_plot)){
+  subset_combined_df = combined_df %>% 
+    filter(type == unique(combined_df$type)[i] & metal == "63Cu") %>%
+    filter(int == unique(max_int))
+  
+  masses_to_plot[i,] = subset_combined_df
+}
+
+
+c10 = c("#1F78B4","#33A02C","#E31A1C","#FF7F00","#6A3D9A","#B15928","#E1AF00","#6A8155","#F7B1A8","black")
+
+combined_df$type = factor(combined_df$type, levels = sort(as.numeric(levels(factor(combined_df$type)))))
+
+#making actual EIC plots
+c = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "c"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "c"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "c"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "c"))$LC_ICP_MS_Retention_Time)+1.5),
+                     ) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "c"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "c"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  geom_vline(data = plot_peaks %>% filter(Peak == "c"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "c"),
+             aes(x = unique(LC_ICP_MS_Retention_Time),
+                 label = "c",
+                 y = max((combined_df %>% filter(range == "c"))$int, na.rm = TRUE)*1.25),
+             fontface = "bold",
+             color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "c") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+d = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "d"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "d"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "d"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "d"))$LC_ICP_MS_Retention_Time)+1.5),
+  ) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "d"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "d"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "d"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "d"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "d",
+                y = max((combined_df %>% filter(range == "d"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "d") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+e = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "e"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "e"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "e"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "e"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(19,19.5,20,20.5,21,21.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "e"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "e"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "e"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "e"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "e",
+                y = max((combined_df %>% filter(range == "e"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "e") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+f = ggplot() +
+  geom_line(data = combined_df %>% filter((range == "f" & metal == "65Cu" & rt <= 21.8) | (range == "f" & metal == "63Cu")),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "f"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "f"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "f"))$LC_ICP_MS_Retention_Time)+1.5),
+                     ) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "f"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "f"))$max_int)*1.5),
+                     breaks = c(0.025,0.05,0.075,0.1,1.025)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "f"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "f"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "f",
+                y = max((combined_df %>% filter(range == "f"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "f") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+
+g = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "g"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "g"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "g"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "g"))$LC_ICP_MS_Retention_Time)+1.5),
+  ) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "g"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "g"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "g"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "g"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "g",
+                y = max((combined_df %>% filter(range == "g"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "g") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+h = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "h"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "h"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "h"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "h"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(22.5,23,23.5,24,24.5,25)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "h"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "h"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "h"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "h"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "h",
+                y = max((combined_df %>% filter(range == "h"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "h") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+i = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "i"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "i"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "i"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "i"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(23.5,24,24.5,25,25.5,26)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "i"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "i"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "i"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "i"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "i",
+                y = max((combined_df %>% filter(range == "i"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "i") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+j = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "j"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "j"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "j"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "j"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(24.5,25,25.5,26,26.5,27)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "j"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "j"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "j"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "j"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "j",
+                y = max((combined_df %>% filter(range == "j"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "j") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1.1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_rect(fill = "transparent"))
+
+k = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "k"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "k"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "k"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "k"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(25,25.5,26,26.5,27,27.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "k"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "k"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "k"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "k"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "k",
+                y = max((combined_df %>% filter(range == "k"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "k") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+l = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "l"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "l"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "l"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "l"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(26,26.5,27,27.5,28)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "l"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "l"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "l"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "l"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "l",
+                y = max((combined_df %>% filter(range == "l"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "l") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+m = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "m"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "m"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "m"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "m"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(27,27.5,28,28.5,29,29.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "m"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "m"))$max_int)*1.5),
+                     breaks = c(0.25,0.5,0.75,1)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "m"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "m"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "m",
+                y = max((combined_df %>% filter(range == "m"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "m") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(-0.025,1.075),
+        legend.justification = c(0,1),
+        legend.background = element_blank())
+
+n = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "n"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "n"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "n"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "n"))$LC_ICP_MS_Retention_Time)+1.5),
+                     ) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "n"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "n"))$max_int)*1.5),
+                     breaks = c(0.25,0.5,0.75,1)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  
+  geom_vline(data = plot_peaks %>% filter(Peak == "n"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "n"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "n",
+                y = max((combined_df %>% filter(range == "n"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "n") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1),
+        legend.background = element_blank())
+
+o = ggplot() +
+  geom_line(data = combined_df %>% filter(range == "o"),
+            aes(x = rt,
+                y = int,
+                color = type,
+                alpha = metal),
+            size = 1.5) +
+  scale_color_manual(values = c10[1:length(unique((combined_df %>% filter(range == "o"))$type))], guide = "none") +
+  scale_alpha_manual(values = c(1,0.25), guide = "none") +
+  scale_x_continuous(limits = c(unique((plot_peaks %>% filter(Peak == "o"))$LC_ICP_MS_Retention_Time)-1.5, unique((plot_peaks %>% filter(Peak == "o"))$LC_ICP_MS_Retention_Time)+1.5),
+                     breaks = c(29.5,30,30.5,31,31.5,32)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.001, decimal.mark = '.'),
+                     limits = c(min((combined_df %>% filter(range == "o"))$int, na.rm=TRUE),max((combined_df %>% filter(range == "o"))$max_int)*1.5)) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nRelative Intensity") +
+  geom_vline(data = plot_peaks %>% filter(Peak == "o"),
+             aes(xintercept = unique(LC_ICP_MS_Retention_Time)),
+             linetype = "dashed", size = 0.8,
+             color = "gray65") +
+  geom_text(data = plot_peaks %>% filter(Peak == "o"),
+            aes(x = unique(LC_ICP_MS_Retention_Time),
+                label = "o",
+                y = max((combined_df %>% filter(range == "o"))$int, na.rm = TRUE)*1.25),
+            fontface = "bold",
+            color = "black",
+            size = 8) +
+  geom_point(data = masses_to_plot %>% filter(range == "o") %>% arrange(icprt),
+             aes(x = icprt,
+                 y = -1,
+                 color = type)) +
+  guides(color = guide_legend(override.aes = list(shape = 16, linetype = "blank", alpha = 1, size = 2.5), ncol = 1, title = "")) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold"),
+        legend.position = c(1,1.075),
+        legend.justification = c(1,1))
+
+#LCICPMS plot for Fig. 2A
+a = ggplot() +
+  geom_line(data = as.data.frame(ICP_smoothish),
+            aes(x = x/60, y = y), color = "black", size = 1.5) +
+  scale_x_continuous(limits = c(13.5,32), breaks = c(14,16,18,20,22,24,26,28,30,32)) +
+  scale_y_continuous(labels = scales::scientific, limits = c(0, 1.07E5), breaks = c(0,3E4,6E4,9E4)) +
+  labs(x = "Retention Time (min)",
+       y = "<b><span style = 'color:#000000;'>LC-ICP-MS</span><span style = 'color:#000000;'><sup>63</sup>Cu</span><br><span style = 'color:#000000;'>Intensity (cps)</span></b>") +
+  geom_vline(data = plot_peaks,
+             aes(xintercept = LC_ICP_MS_Retention_Time), color = "gray65", linetype = "dashed", size = 0.8) +
+  geom_text(data = plot_peaks,
+            aes(x = LC_ICP_MS_Retention_Time, y = 1.5E4, label = Peak), fontface = "bold", size = 8, color = "black") +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 20) +
+  theme(axis.title.x = element_text(face = "bold"),
+        #axis.title.y.left = element_text(face = "bold"),
+        axis.title.y.left = element_markdown(),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+Fig2 = plot_grid(a, 
+          plot_grid(d + theme(axis.title.x = element_blank()), e + theme(axis.title.x = element_blank(), axis.title.y.left = element_blank()), f + theme(axis.title.x = element_blank(), axis.title.y.left = element_blank()),
+                    g + theme(axis.title.x = element_blank()), h + theme(axis.title.x = element_blank(), axis.title.y.left = element_blank()), i + theme(axis.title.x = element_blank(), axis.title.y.left = element_blank()),
+                    j + theme(axis.title.x = element_blank()), k + theme(axis.title.x = element_blank(), axis.title.y.left = element_blank()), l + theme(axis.title.x = element_blank(), axis.title.y.left = element_blank()),
+                    m, n + theme(axis.title.y.left = element_blank()), o + theme(axis.title.y.left = element_blank()),
+                    ncol = 3,
+                    align = "hv"),
+          align = "h",
+          nrow = 2,
+          rel_heights = c(1/6,5/6),
+          labels = c("(A)","(B)"),
+          label_size = 24,
+          hjust = -.75, vjust = 1
+          )
+
+Fig2
+
+```
+
+## Figure 3
+#### Van Krevelen-like diagrams of fecal Cu ligands and known tetrapyrroles. Recent multidimensional stoichiometric compound classification (MSCC) constraints are denoted by shaded regions, although it should be noted these constraints also include phosphorous ratios, mass, and number of atoms in the complete classification scheme (Rivas-Ubach et al., 2018) 
+
+
+```{r echo=TRUE, fig.width=9, fig.height=10, warning=FALSE}
+
+#O/C vs H/C
+vk_a = ggplot() +
+  geom_rect(aes(xmin = 0, xmax  = 0.8, ymin  = 0.75, ymax = 2.05), fill = "white") +
+  geom_rect(aes(xmin = 0, xmax  = 0.8, ymin  = 0.75, ymax = 1.31), fill = "#C9211D", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.5, xmax  = 0.8, ymin = 1, ymax = 1.8), fill = "#288674", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.61, xmax  = 0.8, ymin = 1.45, ymax = 2.05), fill = "#F2A800", alpha = 0.3) +
+  geom_rect(aes(xmin = 0, xmax = 0.605, ymin = 1.31, ymax = 2.05), fill = "#F88600", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.12, xmax = 0.605, ymin = 0.9, ymax = 2.05), fill = "#5BBCD6", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.605, xmax = 0.8, ymin = 1.2, ymax = 2.05), fill = "#5BBCD6", alpha = 0.3) +
+  geom_segment(aes(x = 0, xend  = 0.8, y = 1.305, yend = 1.305), linetype = "dashed", color = "#C9211D") +
+  geom_segment(aes(x = 0.5, xend = 0.5, y = 1, yend = 1.8), linetype = "dashed", color = "#288674") +
+  geom_segment(aes(x = 0.5, xend  = 0.8, y = 1, yend = 1), linetype = "dashed", color = "#288674") +
+  geom_segment(aes(x = 0.5, xend  = 0.8, y = 1.8, yend = 1.8), linetype = "dashed", color = "#288674") +
+  geom_segment(aes(x = 0.61, xend = 0.61, y = 1.45, yend = 2.05), linetype = "dashed", color = "#F2A800") +
+  geom_segment(aes(x = 0.61, xend  = 0.8, y = 1.45, yend = 1.45), linetype = "dashed", color = "#F2A800") +
+  geom_segment(aes(x = 0.6, xend = 0.6, y = 1.315, yend = 2.05), linetype = "dashed", color = "#F88600") +
+  geom_segment(aes(x = 0, xend = 0.6, y = 1.315, yend = 1.3125), linetype = "dashed", color = "#F88600") +
+  geom_segment(aes(x = 0.12, xend = 0.605, y = 0.9, yend = 0.9), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.605, xend = 0.605, y = 0.9, yend = 2.05), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.12, xend = 0.12, y = 0.9, yend = 2.05), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.605, xend = 0.8, y = 1.2, yend = 1.2), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.605, xend = 0.605, y = 1.2, yend = 2.05), linetype = "dashed", color = "#5BBCD6") +
+  
+  geom_point(data = known_molecules, aes(x = O_C_ratio, y = H_C_ratio, shape = color_code_plot), size = 4) +
+  geom_point(data = this_study, aes(x = O_C_ratio, y = H_C_ratio, fill = assignment_err_ppm_freestyle), size = 2.5, shape = 21, alpha = 1) +
+  scale_shape_manual(values = c("Known Cu Ligand (Babcock-Adams 2022)" = 24,
+                                "Heme or Heme Catabolite" = 23,
+                                "Dinoflagellate Luciferin" = 4,
+                                "Chl, Phycobilins, and Phyllobilins" = 22,
+                                "Heme/Chl Precursors" = 25,
+                                "Other Metabolites" = 3,
+                                "Known Cu Ligand (Boiteau 2016)" = 8), 
+                     labels = c("Chl, Phycobilins,\nand Phyllobilins",
+                                "Dinoflagellate\nLuciferin",
+                                "Heme or Heme\nCatabolite",
+                                "Heme/Chl\nPrecursors",
+                                "Known Cu Ligand\n(Babcock-Adams 2022)",
+                                "Known Cu Ligand\n(Boiteau 2016)",
+                                "Other Metabolites\n(e.g. Coenzyme F430)")) +
+  scale_fill_gradient(low = "deeppink", high = "chartreuse", limits = c(0,1), guide = guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+  geom_text(aes(x = 0.01, y = 0.775, label = "Phytochemical"), color = "#C9211D", fontface = "bold", hjust = 0, vjust = 0) +
+  geom_text(aes(x  = 0.8-0.01, y = 1+(0.775-0.75), label = "Nucleotides"), color = "#288674", fontface = "bold", hjust = 1, vjust = 0) +
+  geom_text(aes(x  = 0.8-0.01, y = 1.45+(0.775-0.75), label = "Amino Sugars"), color = "#F2A800", fontface = "bold", hjust = 1, vjust = 0) +
+  geom_text(aes(x = 0.01, y = 2.05-(0.775-0.75), label = "Lipid"), color = "#F88600", fontface = "bold", hjust = 0, vjust = 1) +
+  geom_text(aes(x = 0.605-0.01, y = 2.05-(0.775-0.75), label = "Protein 1"), color = "#5BBCD6", fontface = "bold", hjust = 1, vjust = 1) +
+  geom_text(aes(x = 0.605+0.01, y = 2.05-(0.775-0.75), label = "Protein 2"), color = "#5BBCD6", fontface = "bold", hjust = 0, vjust = 1) +
+  labs(x = "O/C", y = "H/C", shape = "Known Tetrapyrroles\nor Cu Ligands", fill = "Assignment Error (ppm)\nWhale Cu Ligands") +
+  scale_x_continuous(limits = c(0,0.8), expand = c(0,0), breaks = c(0,0.2,0.4,0.6,0.8)) +
+  scale_y_continuous(limits = c(0.75, 2.05), expand = c(0,0)) +
+  coord_cartesian(clip = "off") +
+  theme_classic2(base_size = 17) +
+  theme(legend.position = "right",
+        axis.title.x = element_text(face = "bold", color = "black"),
+        axis.title.y.left = element_text(face = "bold", color = "black"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", color = "black"),
+        legend.key.height = unit(1.25,"cm"))
+
+#N/C vs H/C
+vk_b = ggplot() +
+  geom_rect(aes(xmin = 0.025, xmax = 0.275, ymin = 0.75, ymax = 2.05), fill = "white") +
+  geom_rect(aes(xmin = 0.025, xmax = 0.126, ymin = 0.75, ymax = 1.31), fill = "#C9211D", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.2, xmax = 0.275, ymin = 1, ymax = 1.8), fill = "#288674", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.07, xmax = 0.2, ymin = 1.45, ymax = 2.05), fill = "#F2A800", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.025, xmax = 0.126, ymin = 1.31, ymax = 2.05), fill = "#F88600", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.126, xmax = 0.275, ymin = 0.9, ymax = 2.05), fill = "#5BBCD6", alpha = 0.3) +
+  geom_rect(aes(xmin = 0.2, xmax = 0.275, ymin = 1.2, ymax = 2.05), fill = "#5BBCD6", alpha = 0.3) +
+  geom_segment(aes(x = 0.126, xend = 0.126, y = 0.75, yend = 1.3075), linetype = "dashed", color = "#C9211D") +
+  geom_segment(aes(x = 0.025, xend = 0.126, y = 1.305, yend = 1.3075), linetype = "dashed", color = "#C9211D") +
+  geom_segment(aes(x = 0.2, xend = 0.2, y = 1, yend = 1.8), linetype = "dashed", color = "#288674") +
+  geom_segment(aes(x = 0.2, xend = 0.275, y = 1, yend = 1), linetype = "dashed", color = "#288674") +
+  geom_segment(aes(x = 0.2, xend = 0.275, y = 1.8, yend = 1.8), linetype = "dashed", color = "#288674") +
+  geom_segment(aes(x = 0.07, xend = 0.07, y = 1.45, yend = 2.05), linetype = "dashed", color = "#F2A800") +
+  geom_segment(aes(x = 0.07, xend = 0.19875, y = 1.45, yend = 1.45), linetype = "dashed", color = "#F2A800") +
+  geom_segment(aes(x = 0.19875, xend = 0.19875, y = 1.45, yend = 2.05), linetype = "dashed", color = "#F2A800") +
+  geom_segment(aes(x = 0.126, xend = 0.126, y = 1.315, yend = 2.05), linetype = "dashed", color = "#F88600") +
+  geom_segment(aes(x = 0.025, xend = 0.126, y = 1.315, yend = 1.3125), linetype = "dashed", color = "#F88600") +
+  geom_segment(aes(x = 0.126, xend = 0.275, y = 0.9, yend = 0.9), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.126, xend = 0.126, y = 0.9, yend = 2.05), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.20125, xend = 0.275, y = 1.2, yend = 1.2), linetype = "dashed", color = "#5BBCD6") +
+  geom_segment(aes(x = 0.20125, xend = 0.20125, y = 1.2, yend = 2.05), linetype = "dashed", color = "#5BBCD6") +
+  geom_point(data = known_molecules, aes(x = N_C_ratio, y = H_C_ratio, shape = color_code_plot), size = 4) +
+  geom_point(data = this_study, aes(x = N_C_ratio, y = H_C_ratio, fill = assignment_err_ppm_freestyle), size = 2.5, shape = 21, alpha = 1) +
+  scale_shape_manual(values = c("Known Cu Ligand (Babcock-Adams 2022)" = 24,
+                                "Heme or Heme Catabolite" = 23,
+                                "Dinoflagellate Luciferin" = 4,
+                                "Chl, Phycobilins, and Phyllobilins" = 22,
+                                "Heme/Chl Precursors" = 25,
+                                "Other Metabolites" = 3,
+                                "Known Cu Ligand (Boiteau 2016)" = 8), 
+                     labels = c("Chl, Phycobilins,\nand Phyllobilins",
+                                "Dinoflagellate\nLuciferin",
+                                "Heme or Heme\nCatabolite",
+                                "Heme/Chl\nPrecursors",
+                                "Known Cu Ligand\n(Babcock-Adams 2022)",
+                                "Known Cu Ligand\n(Boiteau 2016)",
+                                "Other Metabolites\n(e.g. Coenzyme F430)")) +
+  scale_fill_gradient(low = "deeppink", high = "chartreuse", limits = c(0,1), guide = guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+  geom_text(aes(x = 0.03, y = 0.775, label = "Phytochemical"), color = "#C9211D", fontface = "bold", hjust = 0, vjust = 0) +
+  geom_text(aes(x = 0.275-0.005, y = 1+(0.775-0.75), label = "Nucleotides"), color = "#288674", fontface = "bold", hjust = 1, vjust = 0) +
+  geom_text(aes(x = 0.07+0.0025, y = 2.05-(0.775-0.75), label = "Amino Sugars"), color = "#F2A800", fontface = "bold", hjust = 0, vjust = 1) +
+  geom_text(aes(x = 0.03, y = 2.05-(0.775-0.75), label = "Lipid"), color = "#F88600", fontface = "bold", hjust = 0, vjust = 1) +
+  geom_text(aes(x = 0.2-0.005, y = 2.05-(0.775-0.75), label = "Protein 1"), color = "#5BBCD6", fontface = "bold", hjust = 1, vjust = 1) +
+  geom_text(aes(x = 0.2+0.005, y = 2.05-(0.775-0.75), label = "Protein 2"), color = "#5BBCD6", fontface = "bold", hjust = 0, vjust = 1) +
+  labs(x = "N/C", y = "H/C", shape = "Known Tetrapyrroles\nor Cu Ligands", fill = "Assignment Error (ppm)\nWhale Cu Ligands") +
+  scale_x_continuous(limits = c(0.025,0.275), expand = c(0,0), breaks = c(.05,.1,.15,.2,.25)) +
+  scale_y_continuous(limits = c(0.75, 2.05), expand = c(0,0)) +
+  coord_cartesian(clip = "off") +
+  theme_classic2(base_size = 17) +
+  theme(legend.position = "right",
+        axis.title.x = element_text(face = "bold", color = "black"),
+        axis.title.y.left = element_text(face = "bold", color = "black"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.text = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", color = "black"),
+        legend.key.height = unit(1.25,"cm"))
+
+
+# combine plots
+legend_a <- cowplot::get_legend(vk_a)
+
+VK <- plot_grid(
+  plot_grid(vk_a + theme(legend.position = "none"),
+            vk_b + theme(legend.position = "none"),
+            ncol = 1,
+            label_size = 17,
+            labels = c("(A)", "(B)"),
+            align = "h", hjust = 0.05),
+  legend_a, rel_widths = c(2, 1)
+)
+
+VK
+```
+
+## Figure 4
+#### Lability leach results of MN19 and MN20 compared to published bulk particulate data
+
+```{r echo=TRUE, fig.width=8, fig.height=7.5, warning=FALSE}
+particle_frame = compare %>% filter(element %in% c("pFe","pCu","Bulk Cu:P","Bulk Fe:P","Fe:P","Cu:P","Bulk Fe","Bulk Cu") & !(species_samp %in% c("CRC7","CRC210","MSS1","Sperm","Pygmy Blue","Fin")))
+
+particle_frame$species_samp = factor(particle_frame$species_samp, levels = c("MN19","MN20","Blue","Humpback","Average"))
+particle_frame$element = factor(particle_frame$element, levels = c("pFe","Fe:P","pCu","Cu:P","Bulk Fe","Bulk Fe:P","Bulk Cu","Bulk Cu:P"))
+
+library(ggtext)
+
+ggplot(particle_frame) +
+  geom_col(aes(x = species_samp,
+               y = value_umol_kg,
+               fill = element),
+           width = 0.8,
+           position = position_dodge(0.8),
+           color = "black") +
+  geom_errorbar(data = particle_frame %>% filter(element == "pFe" | element == "Bulk Fe"),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.09,
+                size = 0.7,
+                position = position_nudge(x = -0.3)) +
+  geom_errorbar(data = particle_frame %>% filter(element == "pCu" | element == "Bulk Cu"),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.09,
+                size = 0.7,
+                position = position_nudge(x = (0.0975))) +
+  geom_errorbar(data = particle_frame %>% filter(element == "Fe:P" | element == "Bulk Fe:P"),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.09,
+                size = 0.7,
+                position = position_nudge(x = -(0.0975))) +
+  geom_errorbar(data = particle_frame %>% filter(element == "Cu:P" | element == "Bulk Cu:P"),
+                aes(x = species_samp,
+                    ymin = value_umol_kg - stddev_umol_kg,
+                    ymax = value_umol_kg + stddev_umol_kg),
+                width = 0.09,
+                size = 0.7,
+                position = position_nudge(x = 0.3)) +
+  labs(x = "",
+       #y = "<b><span style = 'color:#DD8D29;'>&#91;pFe&#93;<sub></sub> (µmol/kg)</span><span style = 'color:#000000;'>, </span><span style = 'color:#00A08A;'>&#91;pCu&#93;<sub></sub> (µmol/kg)</span><br><span style = 'color:#BE2819;'>&#91;Fe:P&#93;<sub></sub> (µmol/mol)</span><span style = 'color:#000000;'>, </span><span style = 'color:#02401B;'>&#91;Cu:P&#93;<sub></sub> (µmol/mol)</span></b>") +
+       y = "") +
+  scale_y_continuous(lim = 1000*c(0,8),
+                     breaks = 1000*c(1,2,3,4,5,6,7,8),
+                     sec.axis = sec_axis(~ . * 1,
+                                         #name = "<b><span style = 'color:#DD8D29;'>&#91;pFe&#93;<sub></sub> (mmol/kg)</span><span style = 'color:#000000;'>, </span><span style = 'color:#00A08A;'>&#91;pCu&#93;<sub></sub> (mmol/kg)</span><br><span style = 'color:#BE2819;'>&#91;Fe:P&#93;<sub></sub> (mmol/mol)</span><span style = 'color:#000000;'>, </span><span style = 'color:#02401B;'>&#91;Cu:P&#93;<sub></sub> (mmol/mol)</span></b>",
+                                         breaks = 1000*c(1,2,3,4,5,6,7,8))) +
+  scale_x_discrete(labels = c("MN19","MN20","Blue\n(n = 15)","Humpback\n(n = 2)","Average\nBaleen\n(n = 26)")) +
+  scale_fill_manual(values = c("#DD8D29","#BE2819","#00A08A","#02401B","#DD8D29","#BE2819","#00A08A","#02401B")) +
+  geom_vline(xintercept = 2.5, linetype = "dashed", color = "black", size = 1) +
+  geom_text(label = "Lability\nLeach\n(This Study)",
+            x = 1.5,
+            y = 7250,
+            size = 5,
+            fontface = "bold") +
+  geom_text(label = "Total Digestion\n(Nicol et al., 2010)\n(Ratnarajah et al., 2014)",
+            x = 4,
+            y = 7250,
+            size = 5,
+            fontface = "bold") +
+  geom_text(label = "[pFe] (µmol/kg)",
+            x = 1-0.31,
+            y = (particle_frame %>% filter(species_samp == "MN19" & element == "pFe"))$value_umol_kg + 225,
+            size = 5,
+            angle = 90,
+            hjust = 0,
+            color = "#DD8D29",
+            fontface = "bold") +
+  geom_text(label = "[pCu] (µmol/kg)",
+            x = 1+0.095,
+            y = (particle_frame %>% filter(species_samp == "MN19" & element == "pCu"))$value_umol_kg + 225,
+            size = 5,
+            angle = 90,
+            hjust = 0,
+            color = "#00A08A",
+            fontface = "bold") +
+  geom_text(label = "[Fe:P] (µmol Fe/mol P)",
+            x = 1-0.114,
+            y = (particle_frame %>% filter(species_samp == "MN19" & element == "Fe:P"))$value_umol_kg + 225,
+            size = 5,
+            angle = 90,
+            hjust = 0,
+            color = "#BE2819",
+            fontface = "bold") +
+  geom_text(label = "[Cu:P] (µmol Cu/mol P)",
+            x = 1+0.29,
+            y = (particle_frame %>% filter(species_samp == "MN19" & element == "Cu:P"))$value_umol_kg + 225,
+            size = 5,
+            angle = 90,
+            hjust = 0,
+            color = "#02401B",
+            fontface = "bold") +
+  coord_cartesian(expand = FALSE) +
+  theme_classic2(base_size = 17.5) +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_markdown(),
+        axis.text.x = element_text(angle = 0, face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        axis.title.y.right = element_markdown(),
+        legend.position = "none",
+        axis.text.y.right = element_text(face = "bold", color = "black"))
+```
+
+## Figure 5
+#### Figure 5 is a conceptual figure, with no code. Clipart was either free to use under appropriate copyright, created by authors, or created by authors with generative AI design tools. 
+
+
+## Figure S1
+#### Example iron chromatogram for sample MN19
+
+```{r echo=TRUE, fig.width=8.5, fig.height=5.5, warning=FALSE}
+#Replace this with your element of choice, options right now are what's in the dataframe above
+#You can adjust if you want, but right now it's 56Fe, 63Cu, 60Ni, 55Mn
+element_to_analyze = "56Fe"
+
+ICPdat_onesamp_onelement <- ICPdata %>%
+  filter(element == element_to_analyze) %>%
+  filter(time > 300)    # excluding first 5 min before LC pump switches from loading pump to nano pumps
+ICPdat_onesamp_onelement.t <- t(ICPdat_onesamp_onelement$intensity) %>% as.matrix()
+
+lambda_try = 8
+
+bc.als <- baseline(ICPdat_onesamp_onelement.t,
+                     lambda = lambda_try, p = .01, maxit = 20, method='als')
+
+# This smooths out youre ICPMS data corrected with the baseline you chose
+ICPdat_onesamp_onelement_wbl <- ICPdat_onesamp_onelement %>%
+  mutate(intensity_baselined = c(getBaseline(bc.als)),
+         intensity_corrected =  c(getCorrected(bc.als))) %>%
+  mutate(intensity_smoothed = sgolayfilt(intensity, p = 15),
+         intensity_corrected_smoothed = sgolayfilt(intensity_corrected, p = 15))
+
+
+ICP<-cbind(ICPdat_onesamp_onelement_wbl[,c("time")],
+           ICPdat_onesamp_onelement_wbl[,c("intensity_corrected_smoothed")])
+colnames(ICP) = c("RT","Int")
+ICP_smoothish<-ksmooth(ICP[,1],ICP[,2],kernel="normal",bandwidth=10)
+
+
+
+fe_icpms_graph_smooth = ggplot() +
+  geom_line(data = as.data.frame(ICP_smoothish),
+            aes(x = x/60, y = y), color = "black", size = 1) +
+  scale_x_continuous(limits = c(5,35), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(x = "Retention Time (min)",
+       y = expression(bold(paste(""^"56","Fe", " Intensity (cps)")))) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+fe_icpms_graph_smooth
+```
+
+
+## Figure S2
+#### Voltammograms from Fe ligand analyses with CLE-ACSV
+
+```{r echo=TRUE, fig.width=12.75, fig.height=16.5, warning=FALSE}
+
+g1 = ggplot(data = MN19 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                                     "0 nM",
+                                                                     "1 nM",
+                                                                     "2 nM",
+                                                                     "3 nM",
+                                                                     "5 nM",
+                                                                     "7.5 nM",
+                                                                     "10 nM",
+                                                                     "15 nM",
+                                                                     "20 nM",
+                                                                     "30 nM",
+                                                                     "40 nM",
+                                                                     "50 nM",
+                                                                     "75 nM",
+                                                                     "100 nM",
+                                                                     "5 nM spike")) +
+  labs(title = "MN19", x = "Potential (V)", y = "Current (A)", color = "Fe Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"))
+
+g2 = ggplot(data = MN20 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                                     "0 nM",
+                                                                     "0.5 nM",
+                                                                     "1.5 nM",
+                                                                     "2 nM",
+                                                                     "3 nM",
+                                                                     "4 nM",
+                                                                     "5 nM",
+                                                                     "7.5 nM",
+                                                                     "10 nM",
+                                                                     "15 nM",
+                                                                     "20 nM",
+                                                                     "30 nM",
+                                                                     "40 nM",
+                                                                     "50 nM",
+                                                                     "5 nM spike")) +
+  labs(title = "MN20", x = "Potential (V)", y = "Current (A)", color = "Fe Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"))
+
+g3 = ggplot(data = MSS1 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                                     "0 nM",
+                                                                     "1 nM",
+                                                                     "2 nM",
+                                                                     "3 nM",
+                                                                     "5 nM",
+                                                                     "7.5 nM",
+                                                                     "10 nM",
+                                                                     "15 nM",
+                                                                     "20 nM",
+                                                                     "30 nM",
+                                                                     "40 nM",
+                                                                     "50 nM",
+                                                                     "75 nM",
+                                                                     "100 nM",
+                                                                     "5 nM spike")) +
+  labs(title = "MSS1", x = "Potential (V)", y = "Current (A)", color = "Fe Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"))
+
+g4 = ggplot(data = CRC7 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                                     "0 nM",
+                                                                     "0.5 nM",
+                                                                     "1.5 nM",
+                                                                     "2 nM",
+                                                                     "3 nM",
+                                                                     "4 nM",
+                                                                     "5 nM",
+                                                                     "7.5 nM",
+                                                                     "10 nM",
+                                                                     "15 nM",
+                                                                     "20 nM",
+                                                                     "30 nM",
+                                                                     "40 nM",
+                                                                     "50 nM",
+                                                                     "5 nM spike")) +
+  labs(title = "CRC7", x = "Potential (V)", y = "Current (A)", color = "Fe Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"))
+
+g5 = ggplot(data = CRC210 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                                     "0 nM",
+                                                                     "1 nM",
+                                                                     "2 nM",
+                                                                     "3 nM",
+                                                                     "5 nM",
+                                                                     "7.5 nM",
+                                                                     "10 nM",
+                                                                     "15 nM",
+                                                                     "20 nM",
+                                                                     "30 nM",
+                                                                     "40 nM",
+                                                                     "50 nM",
+                                                                     "75 nM",
+                                                                     "100 nM",
+                                                                     "5 nM spike")) +
+  labs(title = "CRC210", x = "Potential (V)", y = "Current (A)", color = "Fe Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"))
+
+g6 = NULL
+
+library(cowplot)
+
+CSV_plot = plot_grid(g1 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5)),
+                           g2 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5)),
+                           g3 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5),
+                                      legend.background = element_rect(color = "transparent",fill = "transparent")),
+                           g4 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5),
+                                      legend.background = element_rect(color = "transparent",fill = "transparent")),
+                           g5 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5)),
+                           g6,
+                           nrow = 3,
+                           labels = c("(A)","(B)","(C)","(D)","(E)",""),
+                           align = "hv",
+                           label_size = 23)
+
+CSV_plot
+
+```
+
+
+## Figure S3
+#### Voltammograms from standard addition of humic acid standard
+
+```{r echo=TRUE, fig.width=12.75, fig.height=16.5, warning=FALSE}
+g1 = ggplot(data = MN19_eHS) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = brewer.pal(9, "RdPu")[2:9], labels = c("0 µg/L",
+                                                  "0 µg/L",
+                                                  "0 µg/L",
+                                                  "25 µg/L",
+                                                  "50 µg/L",
+                                                  "100 µg/L",
+                                                  "150 µg/L",
+                                                  "300 µg/L")) +
+  labs(title = "MN19", x = "Potential (V)", y = "Current (A)", color = "SRHA Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=2)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.005),
+        legend.justification = c("right","bottom"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+g2 = ggplot(data = MN20_eHS) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = brewer.pal(9, "RdPu")[2:9], labels = c("0 µg/L",
+                                                  "0 µg/L",
+                                                  "0 µg/L",
+                                                  "25 µg/L",
+                                                  "50 µg/L",
+                                                  "100 µg/L",
+                                                  "150 µg/L",
+                                                  "300 µg/L")) +
+  labs(title = "MN20", x = "Potential (V)", y = "Current (A)", color = "SRHA Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=2)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.005),
+        legend.justification = c("right","bottom"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+g3 = ggplot(data = MSS1_eHS) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = brewer.pal(9, "RdPu")[2:9], labels = c("0 µg/L",
+                                                  "0 µg/L",
+                                                  "0 µg/L",
+                                                  "25 µg/L",
+                                                  "50 µg/L",
+                                                  "100 µg/L",
+                                                  "150 µg/L",
+                                                  "225 µg/L")) +
+  labs(title = "MSS1", x = "Potential (V)", y = "Current (A)", color = "SRHA Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=2)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.005),
+        legend.justification = c("right","bottom"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+g4 = ggplot(data = CRC7_eHS) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = brewer.pal(9, "RdPu")[2:9], labels = c("0 µg/L",
+                                                  "0 µg/L",
+                                                  "0 µg/L",
+                                                  "25 µg/L",
+                                                  "50 µg/L",
+                                                  "100 µg/L",
+                                                  "150 µg/L",
+                                                  "225 µg/L")) +
+  labs(title = "CRC7", x = "Potential (V)", y = "Current (A)", color = "SRHA Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=2)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.005),
+        legend.justification = c("right","bottom"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+g5 = ggplot(data = CRC210_eHS) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = brewer.pal(9, "RdPu")[2:9], labels = c("0 µg/L",
+                                                  "0 µg/L",
+                                                  "0 µg/L",
+                                                  "25 µg/L",
+                                                  "50 µg/L",
+                                                  "100 µg/L",
+                                                  "150 µg/L",
+                                                  "225 µg/L")) +
+  labs(title = "CRC210", x = "Potential (V)", y = "Current (A)", color = "SRHA Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=2)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.005),
+        legend.justification = c("right","bottom"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+g6 = NULL
+  
+library(cowplot)
+
+humic_CSV_plot = plot_grid(g1, g2, g3, g4, g5, g6,
+                           nrow = 3,
+                           labels = c("(A)","(B)","(C)","(D)","(E)",""),
+                           align = "hv",
+                           label_size = 23)
+
+humic_CSV_plot
+```
+
+## Figure S4
+#### Extracted ion chromatograms (EICs) of domoic acid ion
+
+```{r echo=TRUE, fig.width=8.5, fig.height=13, warning=FALSE}
+DA_mass = 312.144714
+DA_mass_Fe = 365.056178
+DA_mass_Cu = 373.05866299999997
+DA_mass_Na = 334.126659
+DA_mass_NH4 = 329.171263
+
+DA_trace = ESIrams$MS1[mz %between% pmppm(DA_mass, 5)]
+DA_trace_Fe = ESIrams$MS1[mz %between% pmppm(DA_mass_Fe, 5)]
+DA_trace_Cu = ESIrams$MS1[mz %between% pmppm(DA_mass_Cu, 5)]
+DA_trace_Na = ESIrams$MS1[mz %between% pmppm(DA_mass_Na, 5)]
+DA_trace_NH4 = ESIrams$MS1[mz %between% pmppm(DA_mass_NH4, 5)]
+
+
+normal_plot = ggplot(DA_trace) +
+  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass,5)[1], 4),"–",round(pmppm(DA_mass,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+  geom_text(aes(label = "Domoic Acid + H", x = 15, y = 1.3e5), size = 6) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+Fe_plot = ggplot(DA_trace_Fe) +
+  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Fe,5)[1], 4),"–",round(pmppm(DA_mass_Fe,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+  geom_text(aes(label = "Domoic Acid + Fe - 2H", x = 15, y = 1.3e5), size = 6) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+Cu_plot = ggplot(DA_trace_Cu) +
+  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Cu,5)[1], 4),"–",round(pmppm(DA_mass_Cu,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+  geom_text(aes(label = "Domoic Acid + Cu - H", x = 15, y = 1.3e5), size = 6) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+# ggplot(DA_trace_Na) +
+#   geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+#   scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+#   scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+#   labs(x = "Retention Time (min)",
+#        y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+#   geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Na,5)[1], 4),"–",round(pmppm(DA_mass_Na,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+#   geom_text(aes(label = "Domoic Acid + Na", x = 15, y = 1.3e5), size = 6) +
+#   theme_classic2(base_size = 18) +
+#   theme(axis.title.x = element_text(face = "bold"),
+#         axis.title.y.left = element_text(face = "bold"),
+#         axis.text.x = element_text(face = "bold"),
+#         axis.text.y.left = element_text(face = "bold"))
+# 
+# ggplot(DA_trace_NH4) +
+#   geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+#   scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+#   scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+#   labs(x = "Retention Time (min)",
+#        y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+#   geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_NH4,5)[1], 4),"–",round(pmppm(DA_mass_NH4,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+#   geom_text(aes(label = "Domoic Acid + NH4", x = 15, y = 1.3e5), size = 6) +
+#   theme_classic2(base_size = 18) +
+#   theme(axis.title.x = element_text(face = "bold"),
+#         axis.title.y.left = element_text(face = "bold"),
+#         axis.text.x = element_text(face = "bold"),
+#         axis.text.y.left = element_text(face = "bold"))
+
+supp_fig_DA = plot_grid(normal_plot, Fe_plot, Cu_plot,
+          ncol = 1,
+          labels = c("(A)","(B)","(C)"),
+          label_size = 20,
+          align = "hv")
+
+supp_fig_DA
+```
+
+## Figure S5
+#### Figure S5 was a photograph of sample filtrate, with no code.
+
+## Figure S6
+#### MS2 spectra from select candidate Cu ligands in sample MN19. Further annotations of this figure was conducted on ChemDraw.
+
+```{r echo=TRUE, fig.width=14.875, fig.height=19.25, warning=FALSE}
+mz_ms2_1 = 650.21622
+mz_rt_1 = 26.46
+apo_ms2_1 = 589.30212
+apo_rt_1 = 24.41
+mz_ms2_2 = 652.23196
+mz_rt_2 = 28.25
+apo_ms2_2 = 591.31788
+apo_rt_2 = 24.47
+mz_ms2_3 = 654.24755
+mz_rt_3 = 25.59
+apo_ms2_3 = 593.33348
+apo_rt_3 = 23.46
+mz_ms2_4 = 684.20469
+mz_rt_4 = 26.4
+apo_ms2_4 = 623.28991
+apo_rt_4 = 25.16
+
+
+mz_rams_1  = ESIrams_FT$MS2[premz%between%pmppm(mz_ms2_1,50) & rt %between% c(mz_rt_1 - 2, mz_rt_1 + 2)] %>% arrange(int)
+
+mz_rams_1$int = mz_rams_1$int/max(mz_rams_1$int)
+
+top_peaks_mz_1 <- (mz_rams_1 %>% 
+  top_n(10, int) %>% 
+  arrange(desc(int)))[c(1,3,4,5,8),]
+
+a = ggplot(mz_rams_1) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+               ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_mz_1[c(1,2),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_1[c(3),],
+            aes(x = fragmz + 5, y = int + 0.11, label = round(fragmz, 2)), hjust = 0) +
+  geom_text(data = top_peaks_mz_1[c(4),],
+            aes(x = fragmz + 5, y = int + 0.04, label = round(fragmz, 2)), hjust = 0) +
+  geom_text(data = top_peaks_mz_1[c(5),],
+            aes(x = fragmz - 7.5, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("39"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("Cu]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(mz_rams_1$premz),3), ", RT = ",round(min(mz_rams_1$rt),2),"-", round(max(mz_rams_1$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+b = ggplot(mz_rams_1) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), alpha = 0) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("41"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("]"))^bold(.("+"))),
+       subtitle = paste0("No MS2 spectra collected")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+mz_rams_2  = ESIrams_FT$MS2[premz%between%pmppm(mz_ms2_2,100) & rt %between% c(mz_rt_2 - 2, mz_rt_2 + 2)] %>% arrange(int)
+
+mz_rams_2$int = mz_rams_2$int/max(mz_rams_2$int)
+
+top_peaks_mz_2 <- (mz_rams_2 %>% 
+  top_n(10, int) %>% 
+  arrange(desc(int)))[c(1,2,4,6,8),]
+
+c = ggplot(mz_rams_2) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_mz_2[c(1,2,4,5),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_2[c(3),],
+            aes(x = fragmz + 5, y = int + 0.05, label = round(fragmz, 2)), hjust = 0) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("41"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("Cu]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(mz_rams_2$premz),3), ", RT = ",round(min(mz_rams_2$rt),2),"-", round(max(mz_rams_2$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+apo_rams_2  = ESIrams_FT$MS2[premz%between%pmppm(apo_ms2_2,50) & rt %between% c(apo_rt_2 - 2, apo_rt_2 + 2)] %>% arrange(int)
+
+apo_rams_2$int = apo_rams_2$int/max(apo_rams_2$int)
+
+top_peaks_apo_2 <- apo_rams_2 %>%
+  top_n(5, int) %>%
+  arrange(desc(int))
+
+d = ggplot(apo_rams_2) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.1),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_apo_2[c(1:4),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_apo_2[c(5),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.1) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("43"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(apo_rams_2$premz),3),"-",round(max(apo_rams_2$premz),3), ", RT = ",round(min(apo_rams_2$rt),2),"-", round(max(apo_rams_2$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+mz_rams_3  = ESIrams_FT$MS2[premz%between%pmppm(mz_ms2_3,200)] %>% arrange(int)
+
+mz_rams_3$int = mz_rams_3$int/max(mz_rams_3$int)
+
+top_peaks_mz_3 <- (mz_rams_3 %>% 
+  top_n(10, int) %>% 
+  arrange(desc(int)))[c(1,3,4,7,8),]
+
+e = ggplot(mz_rams_3) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  coord_cartesian(clip = "off") +
+  geom_text(data = top_peaks_mz_3[c(1,4,5),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_3[c(2),],
+            aes(x = fragmz + 5, y = int + 0.02, label = round(fragmz, 2)), hjust = 0) +
+  geom_text(data = top_peaks_mz_3[c(3),],
+            aes(x = fragmz + 5, y = int + 0.12, label = round(fragmz, 2)), hjust = 0) +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("43"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("Cu]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(mz_rams_3$premz),3),"-",round(max(mz_rams_3$premz),3), ", RT = ",round(min(mz_rams_3$rt),2),"-", round(max(mz_rams_3$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+apo_rams_3  = ESIrams_FT$MS2[premz%between%pmppm(apo_ms2_3,50) & rt %between% c(apo_rt_3 - 2, apo_rt_3 + 2)] %>% arrange(int)
+
+apo_rams_3$int = apo_rams_3$int/max(apo_rams_3$int)
+
+top_peaks_apo_3 <- (apo_rams_3 %>%
+  top_n(10, int) %>%
+  arrange(desc(int)))[c(1,2,3,4,5,8),]
+
+f = ggplot(apo_rams_3) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_apo_3[c(1,2,5,6),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_apo_3[c(3),],
+            aes(x = fragmz + 5, y = int + 0.02, label = round(fragmz, 2)), hjust = 0) +
+  geom_text(data = top_peaks_apo_3[c(4),],
+            aes(x = fragmz + 5, y = int + 0.12, label = round(fragmz, 2)), hjust = 0) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("45"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(apo_rams_3$premz),3), ", RT = ",round(min(apo_rams_3$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+mz_rams_4  = ESIrams_FT$MS2[premz%between%pmppm(mz_ms2_4,100) & rt %between% c(mz_rt_4 - 2, mz_rt_4 + 2)] %>% arrange(int)
+
+mz_rams_4$int = mz_rams_4$int/max(mz_rams_4$int)
+
+top_peaks_mz_4 <- (mz_rams_4 %>% 
+  top_n(10, int) %>% 
+  arrange(desc(int)))[c(1,4,6,9,10),]
+
+i = ggplot(mz_rams_4) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_mz_4[c(1),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_4[c(3),],
+            aes(x = fragmz, y = int + 0.09, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_4[c(2),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.8) +
+  geom_text(data = top_peaks_mz_4[c(4),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.8) +
+  geom_text(data = top_peaks_mz_4[c(5),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.3) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("41"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("SCu]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(mz_rams_4$premz),3),"-",round(max(mz_rams_4$premz),3), ", RT = ",round(min(mz_rams_4$rt),2),"-", round(max(mz_rams_4$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+apo_rams_4  = ESIrams_FT$MS2[premz%between%pmppm(apo_ms2_4,50) & rt %between% c(apo_rt_4 - 2, apo_rt_4 + 2)] %>% arrange(int)
+
+apo_rams_4$int = apo_rams_4$int/max(apo_rams_4$int)
+
+top_peaks_apo_4 <- (apo_rams_4 %>%
+  top_n(10, int) %>%
+  arrange(desc(int)))[c(1,2,4,5,7),]
+
+j = ggplot(apo_rams_4) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_apo_4,
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("43"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("S]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(apo_rams_4$premz),3), ", RT = ",round(min(apo_rams_4$rt),2),"-", round(max(apo_rams_4$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+mz_ms2_5 = 698.21969
+mz_rt_5 = 27.19
+apo_ms2_5 = 637.30554
+apo_rt_5 = 27.36
+
+mz_rams_5  = ESIrams_FT$MS2[premz%between%pmppm(mz_ms2_5,100) & rt %between% c(mz_rt_5 - 2, mz_rt_5 + 2)] %>% arrange(int)
+
+mz_rams_5$int = mz_rams_5$int/max(mz_rams_5$int)
+
+top_peaks_mz_5 <- mz_rams_5 %>% 
+  top_n(10, int) %>% 
+  arrange(desc(int))
+
+k = ggplot(mz_rams_5) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_mz_5[c(1,4),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_5[c(2),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.85) +
+  geom_text(data = top_peaks_mz_5[c(3),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.4) +
+  geom_text(data = top_peaks_mz_5[c(5),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.8) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("34"))]*bold(.("H"))[bold(.("43"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("SCu]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(mz_rams_5$premz),3), ", RT = ",round(min(mz_rams_5$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+apo_rams_5  = ESIrams_FT$MS2[premz%between%pmppm(apo_ms2_5,100)] %>% arrange(int)
+
+apo_rams_5$int = apo_rams_5$int/max(apo_rams_5$int)
+
+top_peaks_apo_5 <- apo_rams_5 %>%
+  top_n(5, int) %>%
+  arrange(desc(int))
+
+l = ggplot(apo_rams_5) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_apo_5[c(1,3),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_apo_5[c(2),],
+            aes(x = fragmz - 5, y = int + 0.05, label = round(fragmz, 2)), hjust = 1) +
+  geom_text(data = top_peaks_apo_5[c(4),],
+            aes(x = fragmz - 5, y = int - 0.035, label = round(fragmz, 2)), hjust = 1) +
+  geom_text(data = top_peaks_apo_5[c(5),],
+            aes(x = fragmz + 5, y = int + 0.05, label = round(fragmz, 2)), hjust = 0) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("34"))]*bold(.("H"))[bold(.("45"))]*bold(.("O"))[bold(.("6"))]*bold(.("N"))[bold(.("4"))]*bold(.("S]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(apo_rams_5$premz),3), ", RT = ",round(min(apo_rams_5$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+mz_ms2_6 = 664.19569
+mz_rt_6 = 26.2
+apo_ms2_6 = 603.28137
+apo_rt_6 = 21.3
+
+mz_rams_6  = ESIrams_FT$MS2[premz%between%pmppm(mz_ms2_6,75) & rt %between% c(mz_rt_6-2, mz_rt_6+2)] %>% arrange(int)
+
+mz_rams_6$int = mz_rams_6$int/max(mz_rams_6$int)
+
+top_peaks_mz_6 <- mz_rams_6 %>% 
+  top_n(5, int) %>% 
+  arrange(desc(int))
+
+g = ggplot(mz_rams_6) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), #color = as.character(round(rt, 2))),
+  ) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(limits = c(100,700), expand = c(0,0),
+                     breaks = c(200,300,400,500,600)) +
+  geom_text(data = top_peaks_mz_6[c(1,2),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.5) +
+  geom_text(data = top_peaks_mz_6[c(3),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.8) +
+  geom_text(data = top_peaks_mz_6[c(4),],
+            aes(x = fragmz + 2.5, y = int + 0.05, label = round(fragmz, 2)), hjust = 0) +
+  geom_text(data = top_peaks_mz_6[c(5),],
+            aes(x = fragmz, y = int + 0.05, label = round(fragmz, 2)), hjust = 0.8) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("37"))]*bold(.("O"))[bold(.("7"))]*bold(.("N"))[bold(.("4"))]*bold(.("Cu]"))^bold(.("+"))),
+       subtitle = paste0("Precursor m/z = ",round(min(mz_rams_6$premz),3), ", RT = ",round(min(mz_rams_6$rt),2)," min")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+h = ggplot(mz_rams_1) +
+  geom_segment(aes(x=fragmz, xend=fragmz, y=int, yend=0), alpha = 0) +
+  scale_y_continuous(limits = c(0,1.075),
+                     expand = c(0,0),
+                     breaks = c(0, .25, .5, .75, 1),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Fragment m/z",
+       y = "Relative Intensity",
+       #color = "",
+       title = bquote(bold(.("[C"))[bold(.("33"))]*bold(.("H"))[bold(.("39"))]*bold(.("O"))[bold(.("7"))]*bold(.("N"))[bold(.("4"))]*bold(.("]"))^bold(.("+"))),
+       subtitle = paste0("No MS2 spectra collected")) +
+  theme_classic2(base_size = 12) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"))
+
+
+space = NULL
+
+plot_grid(a + theme(axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    b + theme(axis.title.y.left = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm"),
+                              axis.title.x = element_blank()),
+                    c + theme(axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    d + theme(axis.title.y.left = element_blank(),
+                              axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    e + theme(axis.title.x = element_blank()),
+                    f + theme(axis.title.y.left = element_blank(),
+                              axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    g + theme(axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    h + theme(axis.title.y.left = element_blank(),
+                              axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    i + theme(axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    j + theme(axis.title.y.left = element_blank(),
+                              axis.title.x = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    k + theme(plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+                    l + theme(axis.title.y.left = element_blank(),
+                              plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")),
+          align = "v",
+          label_size = 16,
+          labels = c("(A)","(B)","(C)","(D)","(E)","(F)","(G)","(H)","(I)","(J)","(K)","(L)"),
+          ncol = 2)
+
+
+```
+
+## Figure S7
+#### Extracted ion chromatogram (EIC) of Cu ligand (m/z = 654.24751) with multiple peaks.
+
+```{r echo=TRUE, fig.width=6, fig.height=5, warning=FALSE}
+ESI_63Cu = ESIrams$MS1[mz%between%pmppm(654.24755, ppm = 5)]
+ESI_63Cu = data.table(rt = ESI_63Cu$rt, mz = ESI_63Cu$mz, int = ESI_63Cu$int, filename = ESI_63Cu$filename, CuIsotope = "63Cu")
+ESI_65Cu = ESIrams$MS1[mz%between%pmppm(656.24574, ppm = 5)]
+ESI_65Cu = data.table(rt = ESI_65Cu$rt, mz = ESI_65Cu$mz, int = ESI_65Cu$int * 2.2, filename = ESI_65Cu$filename, CuIsotope = "65Cu")
+combined_table <- rbind(ESI_63Cu, ESI_65Cu)
+
+
+ggplot(combined_table) +
+  geom_line(aes(x = rt, y = int, color = CuIsotope),
+            size = 1.25) +
+  xlim(c(24,30)) +
+  scale_y_continuous(breaks = c(0.5e6,1e6,1.5e6,2e6,2.5e6,3e6,3.5e6),
+                     labels = scales::scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS Intensity",
+       color = "") +
+  scale_color_manual(values = c("#0A9F9D", "#E54E21"), labels = c(expression(bold(paste(""^"63","Cu"))),
+                                                                  expression(bold(paste(""^"65","Cu × 2.2"))))) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"),
+        legend.text.align = 0)
+```
+
+## Figure S8
+#### Figure S8 are chemical structures generated with ChemDraw.
+
+## Figure S9
+#### Voltammograms from Cu ligand analyses with CLE-ACSV
+
+```{r echo=TRUE, fig.width=8, fig.height=10, warning=FALSE}
+g1 = ggplot(data = MN19 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                             "0 nM",
+                                                             "1 nM",
+                                                             "2 nM",
+                                                             "3 nM",
+                                                             "5 nM",
+                                                             "7.5 nM",
+                                                             "10 nM",
+                                                             "15 nM",
+                                                             "20 nM",
+                                                             "30 nM",
+                                                             "40 nM",
+                                                             "50 nM",
+                                                             "75 nM",
+                                                             "100 nM",
+                                                             "5 nM spike")) +
+  labs(title = "MN19", x = "Potential (V)", y = "Current (A)", color = "Cu Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+g2 = ggplot(data = MN20 %>% filter(treatment != "SPIKE")) +
+  aes(x = potential, y = Y, color = treatment) +
+  geom_line(size = 1) +
+  scale_color_manual(values = stepped3(16)[16:2], labels = c("0 nM",
+                                                             "0 nM",
+                                                             "1 nM",
+                                                             "2 nM",
+                                                             "3 nM",
+                                                             "5 nM",
+                                                             "7.5 nM",
+                                                             "10 nM",
+                                                             "15 nM",
+                                                             "20 nM",
+                                                             "30 nM",
+                                                             "40 nM",
+                                                             "50 nM",
+                                                             "75 nM",
+                                                             "100 nM",
+                                                             "5 nM spike")) +
+  labs(title = "MN20", x = "Potential (V)", y = "Current (A)", color = "Cu Added") +
+  scale_x_reverse() +
+  guides(color=guide_legend(ncol=4)) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 19) +
+  theme(legend.position=c(1,0.995),
+        legend.justification = c("right","top"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold", size = 13.5),
+        legend.text = element_text(face = "bold", size = 13.5))
+
+
+Cu_CSV_plot = plot_grid(g1 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5)),
+                           g2 + theme(legend.title = element_text(size = 13.5),
+                                      legend.text = element_text(size = 13.5)),
+                           nrow = 2,
+                           labels = c("(A)","(B)"),
+                           align = "hv",
+                           label_size = 23)
+
+Cu_CSV_plot
+```
+
+## Figure S10
+#### LC-ICP-MS Standard Curve
+
+```{r echo=TRUE, fig.width=12, fig.height=7, warning=FALSE}
+std_g1 = ggplot(std_curve) +
+  aes(x = Concentration,
+      y = Peak_Area) +
+  geom_smooth(method = "lm", color = "black", linetype = "dashed") +
+  geom_point(size = 4, color = "darkorange3") +
+  labs(x = "Concentration (nM)",
+       y = "Peak Area (A.U.)") +
+  scale_x_continuous(expand = c(0.02, 0)) +
+  scale_y_continuous(expand = c(0.02, 0),
+                     breaks = c(2E5,4E5,6E5,8E5,1E6,1.2E6,1.4E6),
+                     labels = scales::scientific) +
+  stat_poly_eq(aes(label = paste0("atop(", ..eq.label.., ",", ..rr.label.., ")")), 
+               parse = TRUE, 
+               size = 6.25,
+               hjust = 0,
+               label.x = "left",
+               label.y = "top",
+               coef.digits = 3,
+               rr.digits = 3) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+std_g2 = ggplot(std_icpms_data) +
+  aes(x = time/60, y = intensity, color = sampleID) +
+  geom_line(size = 1.25) +
+  scale_x_continuous(limits = c(16,18)) +
+  scale_y_continuous(expand = c(0,0), breaks = c(0,1E4,2E4,3E4,4E4,5E4,6E4,7E4,8E4,9E4)) +
+  scale_color_manual(values = c("#000000", "#0A9F9D", "#E54E21", "#6C8645", "#D8B70A")) +
+  labs(x = "Retention Time (min)",
+       y = "Intensity (cps)",
+       color = "Ferrioxamine E\nConcentration (nM)") +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),  # Bold legend title
+        legend.text = element_text(face = "bold"),
+        legend.justification = c(0, 1),
+        legend.position = c(0.5,0.875))
+
+std_curve_plot = plot_grid(std_g2, NULL, std_g1,
+          align = "hv",
+          label_size = 22.5,
+          labels = c("(A)","","(B)"),
+          rel_widths = c(1,0.05,1),
+          hjust = 0,
+          ncol = 3)
+
+std_curve_plot
+
+```
+
