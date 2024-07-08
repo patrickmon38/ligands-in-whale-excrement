@@ -1,28 +1,36 @@
 ---
-title: "Code for figures in *'Large pool of organic ligands supports iron bioavailability and reduces copper toxicity in whale excrement'* by Monreal et al."
-output: html_notebook
+title: Code for figures in *'Large pool of organic ligands supports iron bioavailability
+  and reduces copper toxicity in whale excrement'* by Monreal et al.
+output:
+  html_document:
+    df_print: paged
 ---
 
 
 ## Load in libraries 
-```{r}
-library(openxlsx)
-library(tidyverse)
-library(ggpattern)
-library(ggbreak)
-library(ggpattern)
-library(grid)
-library(gridExtra)
-library(gtable)
-library(xcms)
-library(RaMS)
-library(data.table)
-library(baseline)
-library(signal)
-library(conflicted)
-library(ggpubr)
-library(scales)
-library(RColorBrewer)
+```{r, message = FALSE, warning = FALSE}
+library(openxlsx, quietly = TRUE)
+library(tidyverse, quietly = TRUE)
+library(pals, quietly = TRUE)
+library(ggpattern, quietly = TRUE)
+library(ggbreak, quietly = TRUE)
+library(ggpattern, quietly = TRUE)
+library(ggpp, quietly = TRUE)
+library(ggpmisc, quietly = TRUE)
+library(grid, quietly = TRUE)
+library(gridExtra, quietly = TRUE)
+library(cowplot, quietly = TRUE)
+library(ggtext, quietly = TRUE)
+library(gtable, quietly = TRUE)
+library(xcms, quietly = TRUE)
+library(RaMS, quietly = TRUE)
+library(data.table, quietly = TRUE)
+library(baseline, quietly = TRUE)
+library(signal, quietly = TRUE)
+library(conflicted, quietly = TRUE)
+library(ggpubr, quietly = TRUE)
+library(scales, quietly = TRUE)
+library(RColorBrewer, quietly = TRUE)
 
 # Use only the dplyr filter function and not the signal one
 conflict_prefer("filter", "dplyr")
@@ -38,11 +46,11 @@ github_data = "~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/For GitHub/GitHub_Data_
 ```
 
 ## Data for Fig. 1 and Fig. 4
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #######################################################
 # Loading in necessary data for Fig. 1A-D
 compare = read.xlsx(github_data, sheet = 1)
-compare %>% as_tibble() %>% print(n=50)
+compare %>% as_tibble() %>% print(n=15)
 #######################################################
 
 #######################################################
@@ -54,11 +62,11 @@ tab2
 #######################################################
 ```
 ## Data for Fig. 2, with ICPMS data used for Fig. S1 and ESIMS data used for Fig. S4 and Fig. S7 as well
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #######################################################
 # Loading in necessary data for Fig. 2
 plot_peaks = as.data.frame(read.xlsx(github_data, sheet = 5, startRow = 1))
-plot_peaks %>% print(n = 50)
+plot_peaks %>% as.tibble() %>% print(n = 15)
 #######################################################
 
 #######################################################
@@ -70,11 +78,12 @@ ICPdata$scan = as.numeric(ICPdata$scan)
 ICPdata$intensity = as.numeric(ICPdata$intensity)
 ICPdata$time = as.numeric(ICPdata$time)
 
-print(ICPdata)
+ICPdata %>% as.tibble() %>% print(n = 15)
 #######################################################
 
 #######################################################
 # LC-ESI-MS data for Fig. 2, loaded in two different data structures
+timerange = c(60, 2400)
 ESIrams = grabMSdata(c("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/ESI/dissolved/MN19/221116_Whale_MN_19.mzXML"),
                      grab_what=c("MS1", "MS2", "BPC"),
                      verbosity = "minimal",
@@ -86,7 +95,7 @@ print(mzxcms)
 #######################################################
 ```
 ## Data for Fig. 3
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #######################################################
 # Molecular formula data for Fig. 3 (VK plot)
 cu_ligands = read.xlsx(github_data, sheet = 6) %>%
@@ -114,7 +123,7 @@ all_with_formula = cu_ligands[complete.cases(cu_ligands$C), ]
 #######################################################
 ```
 ## Data for Fig. S2
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #######################################################
 MN19 = as.data.frame(read.xlsx(github_data, sheet = 7, startRow = 1)) %>% 
   rename("potential" = "X_Values",
@@ -318,7 +327,7 @@ CRC210
 ```
 
 ## Data for Fig. S3
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #######################################################
 MN19_eHS = as.data.frame(read.xlsx(github_data, sheet = 14, startRow = 1)) %>% 
   rename("potential" = "X_Values",
@@ -440,7 +449,7 @@ CRC210_eHS
 #######################################################
 ```
 ## Data for Fig. S6
-```{r}
+```{r, message = FALSE, warning = FALSE}
 
 #######################################################
 
@@ -448,6 +457,8 @@ ESIrams_FT = grabMSdata(c("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/FT Dat
                      grab_what=c("MS1", "MS2", "BPC"),
                      verbosity = "minimal",
                      rtrange = timerange/60) #sample file, loading in using RaMS instead of xcms
+
+mzxcms_FT = xcmsRaw("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/FT Data/WHALE_Mn19.mzXML",profstep=0.02,profmethod="bin",profparam=list(),includeMSn=FALSE,mslevel=NULL, scanrange=NULL)
 
 # First, Align ICPMS and Orbitrap data based on cyanocobalamin
 offset_FT <- 277.43681
@@ -461,7 +472,7 @@ ESIrams_FT$MS2
 #######################################################
 ```
 ## Data for Fig. S9
-```{r}
+```{r, message = FALSE, warning = FALSE}
 
 MN19_Cu = as.data.frame(read.xlsx(github_data, sheet = 13, startRow = 1)) %>% 
   rename("potential" = "X_Values",
@@ -544,7 +555,7 @@ MN20_Cu
 #######################################################
 ```
 ## Data for Fig. S10
-```{r}
+```{r, message = FALSE, warning = FALSE}
 
 std_curve <- data.frame(
   Concentration = c(0, 25, 50, 100, 200),
@@ -582,7 +593,7 @@ std_icpms_data
 
 ### Figure 1A
 #### Barplot of dFe values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1). Only other dFe values for these type of samples are also plotted from literature for comparison.
-```{r echo=TRUE, fig.width=7, fig.height=6}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=7, fig.height=6}
 dfe_frame = compare %>% filter(element %in% c("dFe","SPE-Fe") & species_samp %in% c("MN19","MN20","CRC7","CRC210","MSS1","Ratnarajah et al. (2017) 1","Ratnarajah et al. (2017) 2","Ratnarajah et al. (2017) 3"))
 
 dfe_frame$species_samp = factor(dfe_frame$species_samp, levels = c("MN19","MN20","CRC7","CRC210","MSS1","Ratnarajah et al. (2017) 1","Ratnarajah et al. (2017) 2","Ratnarajah et al. (2017) 3"))
@@ -661,9 +672,11 @@ ggplot(dfe_frame) +
         axis.text.y.left = element_text(face = "bold", color = "black"))
 
 ```
+
 ### Figure 1B
+
 #### Barplot of ligand (L2, L4, and electroactive humic substances) values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1). Maximum dFe value from Fig. 1A is plotted as a horizontal dashed line to show how much ligand was present in the samples relative to dFe
-```{r echo=TRUE, fig.width=7, fig.height=6}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=7, fig.height=6}
 ligand_frame = compare %>% filter(element %in% c("Ltotal","L2","L4","Cu-Ltotal","eHS") & species_samp %in% c("MN19","MN20","CRC7","CRC210","MSS1"))
 
 ligand_frame$species_samp = factor(ligand_frame$species_samp, levels = c("MN19","MN20","CRC7","CRC210","MSS1"))
@@ -728,9 +741,11 @@ ggplot() +
         legend.position = "none",
         axis.text.y.right = element_text(face = "bold", color = "black"))
 ```
+
 ### Figure 1C
+
 #### Barplot of dCu values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1).
-```{r echo=TRUE, fig.width=7, fig.height=6}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=7, fig.height=6}
 dcu_frame = compare %>% filter(element %in% c("dCu","SPE-Cu") & species_samp %in% c("MN19","MN20","CRC7","CRC210","MSS1"))
 
 dcu_frame$species_samp = factor(dcu_frame$species_samp, levels = c("MN19","MN20","CRC7","CRC210","MSS1"))
@@ -795,9 +810,11 @@ ggplot(dcu_frame) +
         legend.position = "none",
         axis.text.y.left = element_text(face = "bold", color = "black"))
 ```
+
 ### Figure 1D
+
 #### Barplot of Cu ligand values of fecal samples from two humpback whales around Palmer Station (MN19, MN20) and three blue whales from the California current (CRC7, CRC210, MSS1).
-```{r echo=TRUE, fig.width=3, fig.height=6}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=3, fig.height=6}
 dcu_lig_frame = compare %>% filter(element %in% c("Cu-Ltotal") & species_samp %in% c("MN19","MN20"))
 
 dcu_lig_frame$species_samp = factor(dcu_lig_frame$species_samp, levels = c("MN19","MN20"))
@@ -832,9 +849,10 @@ ggplot(dcu_lig_frame) +
 ```
 
 ### Figure 1E
+
 #### Table of additional values from CLE-ACSV (binding strength represented by logK, free metal concentrations) and descriptions of samples
 
-```{r echo=TRUE, fig.width=7, fig.height=8.5}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=7, fig.height=8.5}
 #Reformatting data
 
 tab1[1,3] = "Antarctic\nPeninsula"
@@ -901,10 +919,11 @@ grid.arrange(valigned)
 ```
 
 ## Figure 2
+
 #### (A) 63Cu LC-ICP-MS chromatogram for sample MN19, along with (B) extracted ion chromatograms (EICs) of identified LC-ESI-MS (Orbitrap) peaks that correspond to ICP-MS peaks. Opaque colors represent EICs corresponding to 63Cu-bound masses while transparent colors represent EICs corresponding to 65Cu-bound masses, scaled by the natural abundance isotope ratio of 63Cu/65Cu. Exact masses are given from LC-FT-ICR-MS data at the 21 Tesla facility.
 
 
-```{r echo=TRUE, fig.width=17, fig.height=22, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=17, fig.height=22, warning=FALSE}
 
 ### Function to align ICPMS and ESIMS data using cyanocobalamin (internal standard) peaks
 ### Typically this function is more interactive, but a simplified version is here for the sake of the markdown file
@@ -932,8 +951,8 @@ multiMSalign <- function(mzxcms,ICPdata,timerange){
 # First, ALign ICPMS and Orbitrap data based on cyanocobalamin
 offset<-multiMSalign(mzxcms,ICPdata %>% filter(element == "59Co"),timerange)
 # Apply Co Offest
-peaks$icprt = as.numeric(peaks$icprt) + (offset/60)
-apo_peaks$apo_icprt_real = as.numeric(apo_peaks$apo_icprt_real) + (offset/60)
+#peaks$icprt = as.numeric(peaks$icprt) + (offset/60)
+#apo_peaks$apo_icprt_real = as.numeric(apo_peaks$apo_icprt_real) + (offset/60)
 mzxcms@scantime<-mzxcms@scantime+offset
 ESIrams$MS1$rt = ESIrams$MS1$rt+(offset/60)
 
@@ -2458,10 +2477,11 @@ Fig2
 ```
 
 ## Figure 3
+
 #### Van Krevelen-like diagrams of fecal Cu ligands and known tetrapyrroles. Recent multidimensional stoichiometric compound classification (MSCC) constraints are denoted by shaded regions, although it should be noted these constraints also include phosphorous ratios, mass, and number of atoms in the complete classification scheme (Rivas-Ubach et al., 2018) 
 
 
-```{r echo=TRUE, fig.width=9, fig.height=10, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=9, fig.height=10, warning=FALSE}
 
 #O/C vs H/C
 vk_a = ggplot() +
@@ -2601,9 +2621,10 @@ VK
 ```
 
 ## Figure 4
+
 #### Lability leach results of MN19 and MN20 compared to published bulk particulate data
 
-```{r echo=TRUE, fig.width=8, fig.height=7.5, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=8, fig.height=7.5, warning=FALSE}
 particle_frame = compare %>% filter(element %in% c("pFe","pCu","Bulk Cu:P","Bulk Fe:P","Fe:P","Cu:P","Bulk Fe","Bulk Cu") & !(species_samp %in% c("CRC7","CRC210","MSS1","Sperm","Pygmy Blue","Fin")))
 
 particle_frame$species_samp = factor(particle_frame$species_samp, levels = c("MN19","MN20","Blue","Humpback","Average"))
@@ -2711,13 +2732,15 @@ ggplot(particle_frame) +
 ```
 
 ## Figure 5
+
 #### Figure 5 is a conceptual figure, with no code. Clipart was either free to use under appropriate copyright, created by authors, or created by authors with generative AI design tools. 
 
 
 ## Figure S1
+
 #### Example iron chromatogram for sample MN19
 
-```{r echo=TRUE, fig.width=8.5, fig.height=5.5, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=8.5, fig.height=5.5, warning=FALSE}
 #Replace this with your element of choice, options right now are what's in the dataframe above
 #You can adjust if you want, but right now it's 56Fe, 63Cu, 60Ni, 55Mn
 element_to_analyze = "56Fe"
@@ -2767,9 +2790,10 @@ fe_icpms_graph_smooth
 
 
 ## Figure S2
+
 #### Voltammograms from Fe ligand analyses with CLE-ACSV
 
-```{r echo=TRUE, fig.width=12.75, fig.height=16.5, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=12.75, fig.height=16.5, warning=FALSE}
 
 g1 = ggplot(data = MN19 %>% filter(treatment != "SPIKE")) +
   aes(x = potential, y = Y, color = treatment) +
@@ -2969,9 +2993,10 @@ CSV_plot
 
 
 ## Figure S3
+
 #### Voltammograms from standard addition of humic acid standard
 
-```{r echo=TRUE, fig.width=12.75, fig.height=16.5, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=12.75, fig.height=16.5, warning=FALSE}
 g1 = ggplot(data = MN19_eHS) +
   aes(x = potential, y = Y, color = treatment) +
   geom_line(size = 1) +
@@ -3116,9 +3141,10 @@ humic_CSV_plot
 ```
 
 ## Figure S4
+
 #### Extracted ion chromatograms (EICs) of domoic acid ion
 
-```{r echo=TRUE, fig.width=8.5, fig.height=13, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=8.5, fig.height=13, warning=FALSE}
 DA_mass = 312.144714
 DA_mass_Fe = 365.056178
 DA_mass_Cu = 373.05866299999997
@@ -3212,12 +3238,14 @@ supp_fig_DA
 ```
 
 ## Figure S5
+
 #### Figure S5 was a photograph of sample filtrate, with no code.
 
 ## Figure S6
+
 #### MS2 spectra from select candidate Cu ligands in sample MN19. Further annotations of this figure was conducted on ChemDraw.
 
-```{r echo=TRUE, fig.width=14.875, fig.height=19.25, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=14.875, fig.height=19.25, warning=FALSE}
 mz_ms2_1 = 650.21622
 mz_rt_1 = 26.46
 apo_ms2_1 = 589.30212
@@ -3696,9 +3724,10 @@ plot_grid(a + theme(axis.title.x = element_blank(),
 ```
 
 ## Figure S7
+
 #### Extracted ion chromatogram (EIC) of Cu ligand (m/z = 654.24751) with multiple peaks.
 
-```{r echo=TRUE, fig.width=6, fig.height=5, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=6, fig.height=5, warning=FALSE}
 ESI_63Cu = ESIrams$MS1[mz%between%pmppm(654.24755, ppm = 5)]
 ESI_63Cu = data.table(rt = ESI_63Cu$rt, mz = ESI_63Cu$mz, int = ESI_63Cu$int, filename = ESI_63Cu$filename, CuIsotope = "63Cu")
 ESI_65Cu = ESIrams$MS1[mz%between%pmppm(656.24574, ppm = 5)]
@@ -3730,12 +3759,14 @@ ggplot(combined_table) +
 ```
 
 ## Figure S8
+
 #### Figure S8 are chemical structures generated with ChemDraw.
 
 ## Figure S9
+
 #### Voltammograms from Cu ligand analyses with CLE-ACSV
 
-```{r echo=TRUE, fig.width=8, fig.height=10, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=8, fig.height=10, warning=FALSE}
 g1 = ggplot(data = MN19 %>% filter(treatment != "SPIKE")) +
   aes(x = potential, y = Y, color = treatment) +
   geom_line(size = 1) +
@@ -3818,9 +3849,10 @@ Cu_CSV_plot
 ```
 
 ## Figure S10
+
 #### LC-ICP-MS Standard Curve
 
-```{r echo=TRUE, fig.width=12, fig.height=7, warning=FALSE}
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=12, fig.height=7, warning=FALSE}
 std_g1 = ggplot(std_curve) +
   aes(x = Concentration,
       y = Peak_Area) +
