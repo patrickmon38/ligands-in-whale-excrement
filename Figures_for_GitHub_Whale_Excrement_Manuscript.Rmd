@@ -41,7 +41,7 @@ conflict_prefer("which.max","base")
 conflict_prefer("unique","base")
 
 # Path to excel sheet with all required data (except for ESI-MS .mzxml)
-github_data = "~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/For GitHub/GitHub_Data_For_Whale_Ligand_Figures.xlsx"
+github_data = "~/GitHub/Whale_Manuscript/GitHub_Data_For_Whale_Ligand_Figures.xlsx"
 
 ```
 
@@ -84,13 +84,13 @@ ICPdata %>% as.tibble() %>% print(n = 15)
 #######################################################
 # LC-ESI-MS data for Fig. 2, loaded in two different data structures
 timerange = c(60, 2400)
-ESIrams = grabMSdata(c("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/ESI/dissolved/MN19/221116_Whale_MN_19.mzXML"),
+ESIrams = grabMSdata(c("~/GitHub/Whale_Manuscript/221116_Whale_MN_19.mzXML"),
                      grab_what=c("MS1", "MS2", "BPC"),
                      verbosity = "minimal",
                      rtrange = timerange/60) #sample file, loading in using RaMS instead of xcms
 print(ESIrams$MS1)
 
-mzxcms = xcmsRaw("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/ESI/dissolved/MN19/221116_Whale_MN_19.mzXML",profstep=0.02,profmethod="bin",profparam=list(),includeMSn=FALSE,mslevel=NULL, scanrange=NULL)
+mzxcms = xcmsRaw("~/GitHub/Whale_Manuscript/221116_Whale_MN_19.mzXML",profstep=0.02,profmethod="bin",profparam=list(),includeMSn=FALSE,mslevel=NULL, scanrange=NULL)
 print(mzxcms)
 #######################################################
 ```
@@ -453,12 +453,12 @@ CRC210_eHS
 
 #######################################################
 
-ESIrams_FT = grabMSdata(c("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/FT Data/WHALE_Mn19.mzXML"),
+ESIrams_FT = grabMSdata(c("~/GitHub/Whale_Manuscript/WHALE_Mn19.mzXML"),
                      grab_what=c("MS1", "MS2", "BPC"),
                      verbosity = "minimal",
                      rtrange = timerange/60) #sample file, loading in using RaMS instead of xcms
 
-mzxcms_FT = xcmsRaw("~/NOT_Downloads_Folder/UW/Bundy_Lab/WHALE/Data/FT Data/WHALE_Mn19.mzXML",profstep=0.02,profmethod="bin",profparam=list(),includeMSn=FALSE,mslevel=NULL, scanrange=NULL)
+mzxcms_FT = xcmsRaw("~/GitHub/Whale_Manuscript/WHALE_Mn19.mzXML",profstep=0.02,profmethod="bin",profparam=list(),includeMSn=FALSE,mslevel=NULL, scanrange=NULL)
 
 # First, Align ICPMS and Orbitrap data based on cyanocobalamin
 offset_FT <- 277.43681
