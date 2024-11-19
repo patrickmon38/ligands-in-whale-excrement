@@ -1,9 +1,9 @@
 ---
-title: Code for figures in *'Large pool of organic ligands supports iron bioavailability
-  and reduces copper toxicity in whale excrement'* by Monreal et al.
+title: Code for figures in *'Organic ligands in whale excrement support iron availability and reduce copper toxicity to the surface ocean'* by Monreal et al.
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 
@@ -55,13 +55,13 @@ compare %>% as_tibble() %>% print(n=15)
 
 #######################################################
 # Loading in necessary data for Fig. 1E
-tab1 = as.data.frame(read.xlsx(github_data, sheet = 2, startRow = 2))
+tab1 = as.data.frame(read.xlsx(github_data, sheet = 2, startRow = 1))
 tab1
-tab2 = as.data.frame(read.xlsx(github_data, sheet = 3, startRow = 3))
+tab2 = as.data.frame(read.xlsx(github_data, sheet = 3, startRow = 1))
 tab2
 #######################################################
 ```
-## Data for Fig. 2, with ICPMS data used for Fig. S1 and ESIMS data used for Fig. S4 and Fig. S7 as well
+## Data for Fig. 2, with ICPMS data used for Fig. S1 and ESIMS data used for Fig. S5 and Fig. S8 as well
 ```{r, message = FALSE, warning = FALSE}
 #######################################################
 # Loading in necessary data for Fig. 2
@@ -471,7 +471,7 @@ ESIrams_FT$MS2
 
 #######################################################
 ```
-## Data for Fig. S9
+## Data for Fig. S10
 ```{r, message = FALSE, warning = FALSE}
 
 MN19_Cu = as.data.frame(read.xlsx(github_data, sheet = 13, startRow = 1)) %>% 
@@ -554,7 +554,7 @@ MN20_Cu
 
 #######################################################
 ```
-## Data for Fig. S10
+## Data for Fig. S11
 ```{r, message = FALSE, warning = FALSE}
 
 std_curve <- data.frame(
@@ -668,7 +668,7 @@ ggplot(dfe_frame) +
   theme(axis.title.x = element_blank(),
         axis.title.y.left = element_markdown(),
         legend.position = "none",
-        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = c("black", "black","gray40","gray40","gray40","black","black","black")),
         axis.text.y.left = element_text(face = "bold", color = "black"))
 
 ```
@@ -728,14 +728,14 @@ ggplot() +
             alpha = 0.75) +
   labs(x = "",
        y = "<b><span style = 'color:#79402E;'>&#91;L<sub>2</sub>&#93; (µM eq Fe)</span><span style = 'color:#000000;'>, </span><span style = 'color:#AA9486;'>&#91;L<sub>4</sub>&#93; (µM eq Fe)</span><br><span style = 'color:#9986A5;'>&#91;eHS&#93;<sub></sub> (µM eq Fe)</span></b>") +
-  scale_fill_manual(values = c("#9986A5","#79402E","#AA9486","#000000")) +
+  scale_fill_manual(values = c("#9986A5","#9986A5","#79402E","#AA9486")) +
   coord_cartesian(expand = FALSE) +
   scale_y_continuous(limits = c(0,1000),
                      breaks = c(100,200,300,400,500,600,700,800,900)) +
   theme_classic2(base_size = 19) +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_markdown(),
-        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = c("black", "black","gray40","gray40","gray40")),
         axis.text.y.left = element_text(face = "bold", color = "black"),
         axis.title.y.right = element_markdown(),
         legend.position = "none",
@@ -806,7 +806,7 @@ ggplot(dcu_frame) +
   theme_classic2(base_size = 19) +
   theme(axis.title.x = element_blank(),
         axis.title.y.left = element_markdown(),
-        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = c("black", "black","gray40","gray40","gray40")),
         legend.position = "none",
         axis.text.y.left = element_text(face = "bold", color = "black"))
 ```
@@ -843,7 +843,7 @@ ggplot(dcu_lig_frame) +
   theme_classic2(base_size = 19) +
   theme(axis.title.x = element_blank(),
         axis.title.y.left = element_markdown(),
-        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = "black"),
+        axis.text.x = element_text(angle = 45, face = "bold", hjust = 1, color = c("black", "black")),
         legend.position = "none",
         axis.text.y.left = element_text(face = "bold", color = "black"))
 ```
@@ -865,10 +865,10 @@ tab1[2,4] = "light pink,\norange"
 tab1[3,4] = "light pink,\nclear"
 tab1[4,4] = "brown,\norange"
 tab1[5,4] = "dark brown,\nhighly viscous"
-tab1[1,5] = "0.2278\n± 0.167"
+tab1[1,5] = "0.228\n± 0.167"
 tab1[2,5] = "0.0962\n± 0.021"
 tab1[3,5] = "0.0828\n± 0.028"
-tab1[4,5] = "0.3628\n± 0.267"
+tab1[4,5] = "0.363\n± 0.267"
 tab1[5,5] = "0.518\n± 0.102"
 colnames(tab1) <- c("Sample",
                     "Species",
@@ -877,20 +877,20 @@ colnames(tab1) <- c("Sample",
                     "[Fe`] (nM)")
 
 #Reformatting data
-tab2[1,2] = "9.184\n± 0.060"
-tab2[2,2] = "8.761\n± 0.057"
-tab2[3,2] = "8.196\n± 0.094"
-tab2[4,2] = "8.915\n± 0.067"
-tab2[5,2] = "9.649\n± 0.072"
-tab2[1,3] = "11.36\n± 0.284"
-tab2[2,3] = "11.672\n± 0.064"
-tab2[3,3] = "11.888\n± 0.101"
-tab2[4,3] = "11.235\n± 0.253"
-tab2[5,3] = "11.692\n± 0.058"
+tab2[1,2] = "9.18\n± 0.06"
+tab2[2,2] = "8.76\n± 0.06"
+tab2[3,2] = "8.20\n± 0.09"
+tab2[4,2] = "8.92\n± 0.07"
+tab2[5,2] = "9.65\n± 0.07"
+tab2[1,3] = "11.36\n± 0.28"
+tab2[2,3] = "11.67\n± 0.06"
+tab2[3,3] = "11.89\n± 0.10"
+tab2[4,3] = "11.24\n± 0.25"
+tab2[5,3] = "11.69\n± 0.06"
 tab2[1,4] = "14.47\n± 0.09"
 tab2[2,4] = "14.38\n± 0.04"
-tab2[1,5] = "4.246\n± 1.539"
-tab2[2,5] = "2.205\n± 0.321"
+tab2[1,5] = "4.25\n± 1.54"
+tab2[2,5] = "2.20\n± 0.32"
 
 colnames(tab2) <- c(bquote(bold(Sample)),
                     bquote(bold(logK[FeL["4"]*", Fe`"]^cond)),
@@ -898,12 +898,27 @@ colnames(tab2) <- c(bquote(bold(Sample)),
                     bquote(bold(logK[CuL*", Cu`"]^cond)),
                     "[Cu`] (pM)")
 
-t1 = tableGrob(tab1, rows = NULL)
+cols <- matrix("black", nrow(tab1), ncol(tab1))
+cols[1:5,1] <- c("black", "black","gray40","gray40","gray40")
+
+tt1 = ttheme_default()
+tt1$core$fg_params <- list(fontface=matrix(c(2,3,1,1,1), ncol=ncol(tab1),nrow=nrow(tab1),byrow=TRUE))
+tt1$core$fg_params$col = cols
+tt1$core$bg_params$col = NA
+tt1$colhead$bg_params$col = NA
+
+t1 = tableGrob(tab1, rows = NULL, theme = tt1)
+
 t1 <- gtable_add_grob(t1,
                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 4)),
                      t = 1, l = 1, r = ncol(t1))
 
-t2 = tableGrob(tab2, theme = ttheme_default(parse = TRUE), rows = NULL)
+tt2 = ttheme_default(parse = TRUE)
+tt2$core$fg_params <- list(fontface=matrix(c(2,1,1,1,1), ncol=ncol(tab2),nrow=nrow(tab2),byrow=TRUE))
+tt2$core$fg_params$col = cols
+tt2$core$bg_params$col = NA
+tt2$colhead$bg_params$col = NA
+t2 = tableGrob(tab2, theme = tt2, rows = NULL)
 t2 <- gtable_add_grob(t2,
                       grobs = rectGrob(gp = gpar(fill = NA, lwd = 4)),
                       t = 1, l = 1, r = ncol(t2))
@@ -3142,104 +3157,42 @@ humic_CSV_plot
 
 ## Figure S4
 
-#### Extracted ion chromatograms (EICs) of domoic acid ion
-
-```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=8.5, fig.height=13, warning=FALSE}
-DA_mass = 312.144714
-DA_mass_Fe = 365.056178
-DA_mass_Cu = 373.05866299999997
-DA_mass_Na = 334.126659
-DA_mass_NH4 = 329.171263
-
-DA_trace = ESIrams$MS1[mz %between% pmppm(DA_mass, 5)]
-DA_trace_Fe = ESIrams$MS1[mz %between% pmppm(DA_mass_Fe, 5)]
-DA_trace_Cu = ESIrams$MS1[mz %between% pmppm(DA_mass_Cu, 5)]
-DA_trace_Na = ESIrams$MS1[mz %between% pmppm(DA_mass_Na, 5)]
-DA_trace_NH4 = ESIrams$MS1[mz %between% pmppm(DA_mass_NH4, 5)]
-
-
-normal_plot = ggplot(DA_trace) +
-  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
-  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
-  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
-  labs(x = "Retention Time (min)",
-       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
-  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass,5)[1], 4),"–",round(pmppm(DA_mass,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
-  geom_text(aes(label = "Domoic Acid + H", x = 15, y = 1.3e5), size = 6) +
-  theme_classic2(base_size = 18) +
-  theme(axis.title.x = element_text(face = "bold"),
-        axis.title.y.left = element_text(face = "bold"),
-        axis.text.x = element_text(face = "bold"),
-        axis.text.y.left = element_text(face = "bold"))
-
-Fe_plot = ggplot(DA_trace_Fe) +
-  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
-  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
-  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
-  labs(x = "Retention Time (min)",
-       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
-  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Fe,5)[1], 4),"–",round(pmppm(DA_mass_Fe,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
-  geom_text(aes(label = "Domoic Acid + Fe - 2H", x = 15, y = 1.3e5), size = 6) +
-  theme_classic2(base_size = 18) +
-  theme(axis.title.x = element_text(face = "bold"),
-        axis.title.y.left = element_text(face = "bold"),
-        axis.text.x = element_text(face = "bold"),
-        axis.text.y.left = element_text(face = "bold"))
-
-Cu_plot = ggplot(DA_trace_Cu) +
-  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
-  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
-  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
-  labs(x = "Retention Time (min)",
-       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
-  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Cu,5)[1], 4),"–",round(pmppm(DA_mass_Cu,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
-  geom_text(aes(label = "Domoic Acid + Cu - H", x = 15, y = 1.3e5), size = 6) +
-  theme_classic2(base_size = 18) +
-  theme(axis.title.x = element_text(face = "bold"),
-        axis.title.y.left = element_text(face = "bold"),
-        axis.text.x = element_text(face = "bold"),
-        axis.text.y.left = element_text(face = "bold"))
-
-# ggplot(DA_trace_Na) +
-#   geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
-#   scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
-#   scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
-#   labs(x = "Retention Time (min)",
-#        y = "LC-ESI-MS (Orbitrap)\nIntensity") +
-#   geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Na,5)[1], 4),"–",round(pmppm(DA_mass_Na,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
-#   geom_text(aes(label = "Domoic Acid + Na", x = 15, y = 1.3e5), size = 6) +
-#   theme_classic2(base_size = 18) +
-#   theme(axis.title.x = element_text(face = "bold"),
-#         axis.title.y.left = element_text(face = "bold"),
-#         axis.text.x = element_text(face = "bold"),
-#         axis.text.y.left = element_text(face = "bold"))
-# 
-# ggplot(DA_trace_NH4) +
-#   geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
-#   scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
-#   scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
-#   labs(x = "Retention Time (min)",
-#        y = "LC-ESI-MS (Orbitrap)\nIntensity") +
-#   geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_NH4,5)[1], 4),"–",round(pmppm(DA_mass_NH4,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
-#   geom_text(aes(label = "Domoic Acid + NH4", x = 15, y = 1.3e5), size = 6) +
-#   theme_classic2(base_size = 18) +
-#   theme(axis.title.x = element_text(face = "bold"),
-#         axis.title.y.left = element_text(face = "bold"),
-#         axis.text.x = element_text(face = "bold"),
-#         axis.text.y.left = element_text(face = "bold"))
-
-supp_fig_DA = plot_grid(normal_plot, Fe_plot, Cu_plot,
-          ncol = 1,
-          labels = c("(A)","(B)","(C)"),
-          label_size = 20,
-          align = "hv")
-
-supp_fig_DA
-```
+#### Figure S4 was a photograph of sample filtrate, with no code.
 
 ## Figure S5
 
-#### Figure S5 was a photograph of sample filtrate, with no code.
+#### Extracted ion chromatogram (EIC) of Cu ligand (m/z = 654.24751) with multiple peaks.
+
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=6, fig.height=5, warning=FALSE}
+ESI_63Cu = ESIrams$MS1[mz%between%pmppm(654.24755, ppm = 5)]
+ESI_63Cu = data.table(rt = ESI_63Cu$rt, mz = ESI_63Cu$mz, int = ESI_63Cu$int, filename = ESI_63Cu$filename, CuIsotope = "63Cu")
+ESI_65Cu = ESIrams$MS1[mz%between%pmppm(656.24574, ppm = 5)]
+ESI_65Cu = data.table(rt = ESI_65Cu$rt, mz = ESI_65Cu$mz, int = ESI_65Cu$int * 2.2, filename = ESI_65Cu$filename, CuIsotope = "65Cu")
+combined_table <- rbind(ESI_63Cu, ESI_65Cu)
+
+
+ggplot(combined_table) +
+  geom_line(aes(x = rt, y = int, color = CuIsotope),
+            size = 1.25) +
+  xlim(c(24,30)) +
+  scale_y_continuous(breaks = c(0.5e6,1e6,1.5e6,2e6,2.5e6,3e6,3.5e6),
+                     labels = scales::scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS Intensity",
+       color = "") +
+  scale_color_manual(values = c("#0A9F9D", "#E54E21"), labels = c(expression(bold(paste(""^"63","Cu"))),
+                                                                  expression(bold(paste(""^"65","Cu × 2.2"))))) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold", color = "black"),
+        axis.text.y.left = element_text(face = "bold", color = "black"),
+        legend.title = element_text(face = "bold"),
+        legend.text = element_text(face = "bold"),
+        legend.text.align = 0)
+```
 
 ## Figure S6
 
@@ -3725,44 +3678,166 @@ plot_grid(a + theme(axis.title.x = element_blank(),
 
 ## Figure S7
 
-#### Extracted ion chromatogram (EIC) of Cu ligand (m/z = 654.24751) with multiple peaks.
-
-```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=6, fig.height=5, warning=FALSE}
-ESI_63Cu = ESIrams$MS1[mz%between%pmppm(654.24755, ppm = 5)]
-ESI_63Cu = data.table(rt = ESI_63Cu$rt, mz = ESI_63Cu$mz, int = ESI_63Cu$int, filename = ESI_63Cu$filename, CuIsotope = "63Cu")
-ESI_65Cu = ESIrams$MS1[mz%between%pmppm(656.24574, ppm = 5)]
-ESI_65Cu = data.table(rt = ESI_65Cu$rt, mz = ESI_65Cu$mz, int = ESI_65Cu$int * 2.2, filename = ESI_65Cu$filename, CuIsotope = "65Cu")
-combined_table <- rbind(ESI_63Cu, ESI_65Cu)
-
-
-ggplot(combined_table) +
-  geom_line(aes(x = rt, y = int, color = CuIsotope),
-            size = 1.25) +
-  xlim(c(24,30)) +
-  scale_y_continuous(breaks = c(0.5e6,1e6,1.5e6,2e6,2.5e6,3e6,3.5e6),
-                     labels = scales::scientific) +
-  labs(x = "Retention Time (min)",
-       y = "LC-ESI-MS Intensity",
-       color = "") +
-  scale_color_manual(values = c("#0A9F9D", "#E54E21"), labels = c(expression(bold(paste(""^"63","Cu"))),
-                                                                  expression(bold(paste(""^"65","Cu × 2.2"))))) +
-  coord_cartesian(expand = FALSE) +
-  theme_classic(base_size = 18) +
-  theme(axis.title.x = element_text(face = "bold"),
-        axis.title.y.left = element_text(face = "bold"),
-        plot.title = element_text(face = "bold"),
-        axis.text.x = element_text(face = "bold", color = "black"),
-        axis.text.y.left = element_text(face = "bold", color = "black"),
-        legend.title = element_text(face = "bold"),
-        legend.text = element_text(face = "bold"),
-        legend.text.align = 0)
-```
+#### Figure S7 are chemical structures generated with ChemDraw.
 
 ## Figure S8
 
-#### Figure S8 are chemical structures generated with ChemDraw.
+#### Extracted ion chromatograms (EICs) of domoic acid ion
+
+```{r echo=TRUE, message = FALSE, warning = FALSE, fig.width=8.5, fig.height=13, warning=FALSE}
+DA_mass = 312.144714
+DA_mass_Fe = 365.056178
+DA_mass_Cu = 373.05866299999997
+DA_mass_Na = 334.126659
+DA_mass_NH4 = 329.171263
+
+DA_trace = ESIrams$MS1[mz %between% pmppm(DA_mass, 5)]
+DA_trace_Fe = ESIrams$MS1[mz %between% pmppm(DA_mass_Fe, 5)]
+DA_trace_Cu = ESIrams$MS1[mz %between% pmppm(DA_mass_Cu, 5)]
+DA_trace_Na = ESIrams$MS1[mz %between% pmppm(DA_mass_Na, 5)]
+DA_trace_NH4 = ESIrams$MS1[mz %between% pmppm(DA_mass_NH4, 5)]
+
+
+normal_plot = ggplot(DA_trace) +
+  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass,5)[1], 4),"–",round(pmppm(DA_mass,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+  geom_text(aes(label = "Domoic Acid + H", x = 15, y = 1.3e5), size = 6) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+Fe_plot = ggplot(DA_trace_Fe) +
+  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Fe,5)[1], 4),"–",round(pmppm(DA_mass_Fe,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+  geom_text(aes(label = "Domoic Acid + Fe - 2H", x = 15, y = 1.3e5), size = 6) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+Cu_plot = ggplot(DA_trace_Cu) +
+  geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+  labs(x = "Retention Time (min)",
+       y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+  geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Cu,5)[1], 4),"–",round(pmppm(DA_mass_Cu,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+  geom_text(aes(label = "Domoic Acid + Cu - H", x = 15, y = 1.3e5), size = 6) +
+  theme_classic2(base_size = 18) +
+  theme(axis.title.x = element_text(face = "bold"),
+        axis.title.y.left = element_text(face = "bold"),
+        axis.text.x = element_text(face = "bold"),
+        axis.text.y.left = element_text(face = "bold"))
+
+# ggplot(DA_trace_Na) +
+#   geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+#   scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+#   scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+#   labs(x = "Retention Time (min)",
+#        y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+#   geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_Na,5)[1], 4),"–",round(pmppm(DA_mass_Na,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+#   geom_text(aes(label = "Domoic Acid + Na", x = 15, y = 1.3e5), size = 6) +
+#   theme_classic2(base_size = 18) +
+#   theme(axis.title.x = element_text(face = "bold"),
+#         axis.title.y.left = element_text(face = "bold"),
+#         axis.text.x = element_text(face = "bold"),
+#         axis.text.y.left = element_text(face = "bold"))
+# 
+# ggplot(DA_trace_NH4) +
+#   geom_segment(aes(x = rt, y = 0, xend = rt, yend = int)) +
+#   scale_x_continuous(expand = c(0,0), limits = c(0,40), breaks = c(5,10,15,20,25,30,35)) +
+#   scale_y_continuous(expand = c(0,0), limits = c(0,2e5), labels = scientific) +
+#   labs(x = "Retention Time (min)",
+#        y = "LC-ESI-MS (Orbitrap)\nIntensity") +
+#   geom_text(aes(label = paste0("m/z range: ",round(pmppm(DA_mass_NH4,5)[1], 4),"–",round(pmppm(DA_mass_NH4,5)[2], 4)), x = 15, y = 1.5e5), size = 6) +
+#   geom_text(aes(label = "Domoic Acid + NH4", x = 15, y = 1.3e5), size = 6) +
+#   theme_classic2(base_size = 18) +
+#   theme(axis.title.x = element_text(face = "bold"),
+#         axis.title.y.left = element_text(face = "bold"),
+#         axis.text.x = element_text(face = "bold"),
+#         axis.text.y.left = element_text(face = "bold"))
+
+supp_fig_DA = plot_grid(normal_plot, Fe_plot, Cu_plot,
+          ncol = 1,
+          labels = c("(A)","(B)","(C)"),
+          label_size = 20,
+          align = "hv")
+
+supp_fig_DA
+```
 
 ## Figure S9
+
+#### Map of sample collection areas
+
+```{r}
+library(ggOceanMaps, quietly = TRUE)
+library(ggspatial, quietly = TRUE)
+library(ggforce, quietly = TRUE)
+
+# We altered the bathymetric file that is used in this chunk to be courser resolution, which makes this chunk easier to run for the purposes of this file. bathy.style = "rcb" (a much finer-resolution bathymetry) was used when generating the actual figure S9
+
+suppyy = basemap(limits = c(-125,-121,35.5,38.5), bathy.style = "raster_binned_blues", grid.col = "black") +
+  #ggspatial::geom_spatial_point(aes(x = -122.0968, y = 36.801), color = "darkred") +
+  #ggspatial::geom_spatial_point(aes(x = -122.879087, y = 37.757581), color = "darkred")+
+  #ggspatial::geom_spatial_point(aes(x = -121.977, y = 36.4198), color = "darkred") +
+  labs(x = NULL, y = NULL, title = "California Current Samples", subtitle = "CRC7, CRC210, and MSS1") +
+  ggspatial::annotation_scale(location = "bl", text_col = "white") +
+  geom_ellipse(aes(x0 = -123.1, y0 = 37.825, a = 0.2, b = 0.12, angle = 60), fill = "salmon", alpha = 0.25, color = "black") +
+  ggspatial::geom_spatial_text(aes(x = -123.1, y = 37.825, label = "CRC7"), angle = 30, size = 3, fontface = "bold") +
+  geom_ellipse(aes(x0 = -122.0968, y0 = 36.801, a = 0.15, b = 0.12, angle = 0), fill = "salmon", alpha = 0.25, color = "black") +
+  ggspatial::geom_spatial_text(aes(x = -122.0968, y = 36.801, label = "CRC\n210"), size = 2.6, fontface = "bold") +
+  geom_ellipse(aes(x0 = -122.05, y0 = 36.4198, a = 0.15, b = 0.12, angle = 0), fill = "salmon", alpha = 0.25, color = "black") +
+  ggspatial::geom_spatial_text(aes(x = -122.05, y = 36.4198, label = "MSS1"), size = 2.6, fontface = "bold") +
+  ggspatial::geom_spatial_label(aes(x = -123.65, y = 37.9, label = "07/02/2020"), size = 3, fontface = "bold") +
+  ggspatial::geom_spatial_label(aes(x = -122.65, y = 36.9, label = "08/29/2018"), size = 3, fontface = "bold") +
+  ggspatial::geom_spatial_label(aes(x = -122.55, y = 36.5, label = "08/28/2018"), size = 3, fontface = "bold") +
+  theme(axis.text.x = element_text(color = "black", face = "bold", size = 11),
+        axis.text.y = element_text(color = "black", face = "bold", size = 11))
+
+suppxx = basemap(limits = c(-100, 0, -90, -62.5), bathy.style = "raster_binned_blues", grid.col = "black") +
+  ggspatial::geom_spatial_point(aes(x = -64.0538, y = -64.7743), color = "black", size = 9, shape = 21, fill = "salmon", alpha = 0.25) +
+  ggspatial::geom_spatial_point(aes(x = -64.0538, y = -64.7743), color = "black", size = 9, shape = 1) +
+  ggspatial::geom_spatial_text(aes(x = -7.5, y = -59, label = "60°S"), color = "black", angle = 7.5) +
+  ggspatial::geom_spatial_text(aes(x = -7.5, y = -69, label = "70°S"), color = "black", angle = 7.5) +
+  ggspatial::geom_spatial_text(aes(x = -7.5, y = -79, label = "80°S"), color = "black", angle = 7.5) +
+  ggspatial::geom_spatial_text(aes(x = -125, y = -85, label = "135°W"), color = "black", angle = 45) +
+  ggspatial::geom_spatial_text(aes(x = -80, y = -85, label = "90°W"), color = "black", angle = 0) +
+  ggspatial::geom_spatial_text(aes(x = -35, y = -85, label = "45°W"), color = "black", angle = -45) +
+  ggspatial::geom_spatial_label(aes(x = -55, y = -69, label = "MN19: 01/31/2019"), size = 3, fontface = "bold") +
+  ggspatial::geom_spatial_label(aes(x = -58, y = -71, label = "MN20: 03/02/2020"), size = 3, fontface = "bold") +
+  labs(title = "Antarctic Peninsula Samples", subtitle = "MN19 and MN20") +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.ticks.y = element_blank())
+
+library(cowplot)
+map_plot = plot_grid(suppyy, suppxx, 
+          nrow = 1,
+          labels = c("(A)","(B)"),
+          label_size = 16,
+          align = "hv", 
+          label_x = 0,
+          label_y = 0.88)
+
+map_plot
+
+
+```
+
+## Figure S10
 
 #### Voltammograms from Cu ligand analyses with CLE-ACSV
 
@@ -3848,7 +3923,7 @@ Cu_CSV_plot = plot_grid(g1 + theme(legend.title = element_text(size = 13.5),
 Cu_CSV_plot
 ```
 
-## Figure S10
+## Figure S11
 
 #### LC-ICP-MS Standard Curve
 
